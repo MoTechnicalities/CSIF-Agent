@@ -1,0 +1,9 @@
+[package]
+name = "demo_sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+csif-sync = { path = "../../crates/csif-sync" }
+rwif-core = { path = "../../crates/rwif-core" }

@@ -1,0 +1,11 @@
+[package]
+name = "agent_demo"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mogir Jason Rofick <mogir@protonmail.com>"]
+description = "Demo binary for CSIF-Agent"
+license = "Apache-2.0"
+
+[dependencies]
+csif-agent = { path = "../../crates/csif-agent" }
+tokio = { version = "1", features = ["full"] }

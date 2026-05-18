@@ -1,0 +1,22 @@
+[package]
+name = "csif-agent"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mogir Jason Rofick <mogir@protonmail.com>"]
+description = "CSIF-Agent: Deterministic, phase-resonant agent framework (Rust)"
+license = "Apache-2.0"
+
+[dependencies]
+csif-core = { path = "../csif-core" }
+rwif-core = { path = "../rwif-core" }
+csif-guard = { path = "../csif-guard" }
+csif-sync = { path = "../csif-sync" }
+csif-cache = { path = "../csif-cache" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+thiserror = "1.0"
+anyhow = "1.0"
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["clock"] }

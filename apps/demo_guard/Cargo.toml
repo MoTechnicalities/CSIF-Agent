@@ -1,0 +1,9 @@
+[package]
+name = "demo_guard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+csif-guard = { path = "../../crates/csif-guard" }
+rwif-core = { path = "../../crates/rwif-core" }

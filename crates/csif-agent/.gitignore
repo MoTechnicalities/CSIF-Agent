@@ -1,0 +1,2 @@
+# Ignore agent test artifacts
+/tmp/csif-agent-test.json

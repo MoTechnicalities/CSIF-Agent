@@ -1,0 +1,24 @@
+[workspace]
+members = [
+  "crates/csif-core",
+  "crates/rwif-core",
+  "crates/csif-guard",
+  "crates/csif-sync",
+  "crates/csif-cache",
+  "crates/csif-agent",
+  "apps/demo_cache",
+  "apps/demo_guard",
+  "apps/demo_sync",
+  "apps/agent_demo",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+version = "0.1.0"
+authors = ["Mogir Jason Rofick"]
+
+[workspace.dependencies]
+csif-core = { path = "crates/csif-core" }
+rwif-core = { path = "crates/rwif-core" }

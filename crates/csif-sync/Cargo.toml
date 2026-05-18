@@ -1,0 +1,13 @@
+[package]
+name = "csif-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+csif-core.workspace = true
+rwif-core.workspace = true
+chrono = { version = "0.4", features = ["clock"] }
+
+[lib]
+path = "src/lib.rs"
