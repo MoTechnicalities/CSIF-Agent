@@ -8,6 +8,7 @@ use chrono::Utc;
 use std::path::Path;
 use std::path::PathBuf;
 use std::error::Error;
+use std::collections::{HashSet, VecDeque};
 
 pub struct CSIFAgent {
     pub cache: QueryCache,
@@ -49,19 +50,33 @@ impl CSIFAgent {
 
     /// Process a natural language query (or structured input)
     pub fn query(&mut self, input: &str) -> String {
-        // Extract subject from question (e.g., 'whale' from 'What is a whale?')
-        let Some(subject) = parse_query_subject(input) else {
+        let Some(query) = parse_query(input) else {
             return "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string();
         };
+
+        if let Some(answer) = self.answer_from_crystal(&query) {
+            let query_phase = 0.0;
+            let query_sigma = 0.02;
+            let cache_key = query.cache_key();
+            let cached = CachedResponse {
+                response: answer.clone(),
+                resonance: 0.0,
+                sigma: query_sigma,
+                candidate_node_id: format!("n_{}", slug(query.subject())),
+            };
+            self.cache.insert(&cache_key, query_phase, query_sigma, cached);
+            return format!("[CRYSTAL] {}", answer);
+        }
+
+        let cache_key = query.cache_key();
 
         let query_phase = 0.0;
         let query_sigma = 0.02;
         let resonance_threshold = 0.05;
         let sigma_threshold = 0.05;
 
-        // Use subject as cache key, not the entire question
         match self.cache.preflight(
-            &subject,
+            &cache_key,
             query_phase,
             query_sigma,
             &self.crystal,
@@ -73,25 +88,10 @@ impl CSIFAgent {
                 format!("[CACHE] {}", response.response)
             }
             PreflightResult::CacheMiss => {
-                if let Some(answer) = self.answer_from_crystal(&subject) {
-                    let cached = CachedResponse {
-                        response: answer.clone(),
-                        resonance: 0.0,
-                        sigma: query_sigma,
-                        candidate_node_id: format!("n_{}", slug(&subject)),
-                    };
-                    self.cache.insert(&subject, query_phase, query_sigma, cached);
-                    format!("[CRYSTAL] {}", answer)
-                } else {
-                    "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
-                }
+                "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
             }
             PreflightResult::NeedsDeepValidation => {
-                if let Some(answer) = self.answer_from_crystal(&subject) {
-                    format!("[CRYSTAL] {}", answer)
-                } else {
-                    "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
-                }
+                "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
             }
         }
     }
@@ -108,25 +108,42 @@ impl CSIFAgent {
     }
 
     /// Answer a query directly from the crystal (without cache)
-    fn answer_from_crystal(&self, input: &str) -> Option<String> {
-        let subject = parse_query_subject(input)?;
-        let mut is_a_targets = Vec::new();
-        for edge in self.crystal.edges.values() {
-            let Some(source_label) = node_label_by_id(&self.crystal, &edge.source) else {
-                continue;
-            };
-            if source_label == subject && edge.relation == "is_a" {
-                if let Some(target_label) = node_label_by_id(&self.crystal, &edge.target) {
-                    is_a_targets.push(target_label.to_string());
+    fn answer_from_crystal(&self, query: &Query) -> Option<String> {
+        match query {
+            Query::Describe { subject } => {
+                let mut is_a_targets = self.direct_is_a_targets(subject);
+                if !is_a_targets.is_empty() {
+                    is_a_targets.sort();
+                    is_a_targets.dedup();
+                    let rendered_targets = is_a_targets
+                        .iter()
+                        .map(|target| format!("{} {}", article_for(target), target))
+                        .collect::<Vec<_>>()
+                        .join(" and ");
+                    return Some(format!("A {} is {}.", subject, rendered_targets));
+                }
+                None
+            }
+            Query::IsA { subject, target } => {
+                if self.has_transitive_is_a(subject, target) {
+                    Some(format!(
+                        "YES: {} {} is {} {}.",
+                        article_for(subject),
+                        subject,
+                        article_for(target),
+                        target
+                    ))
+                } else {
+                    Some(format!(
+                        "NO: I cannot establish that {} {} is {} {} from the crystal.",
+                        article_for(subject),
+                        subject,
+                        article_for(target),
+                        target
+                    ))
                 }
             }
         }
-        if !is_a_targets.is_empty() {
-            is_a_targets.sort();
-            is_a_targets.dedup();
-            return Some(format!("A {} is {}.", subject, is_a_targets.join(" and ")));
-        }
-        None
     }
 
     /// Check if an input contradicts existing knowledge
@@ -208,6 +225,27 @@ impl CSIFAgent {
     }
 }
 
+enum Query {
+    Describe { subject: String },
+    IsA { subject: String, target: String },
+}
+
+impl Query {
+    fn subject(&self) -> &str {
+        match self {
+            Query::Describe { subject } => subject,
+            Query::IsA { subject, .. } => subject,
+        }
+    }
+
+    fn cache_key(&self) -> String {
+        match self {
+            Query::Describe { subject } => subject.clone(),
+            Query::IsA { subject, target } => format!("{}|is_a|{}", subject, target),
+        }
+    }
+}
+
 fn normalize_text(text: &str) -> String {
     text.trim().trim_end_matches('.').trim().to_lowercase()
 }
@@ -230,11 +268,16 @@ fn parse_fact_is_a(input: &str) -> Option<(String, String)> {
 
     let mut parts = rest.splitn(2, " is ");
     let subject = parts.next()?.trim();
-    let target = parts.next()?.trim();
+    let mut target = parts.next()?.trim().to_string();
+    if let Some(stripped) = target.strip_prefix("a ") {
+        target = stripped.trim().to_string();
+    } else if let Some(stripped) = target.strip_prefix("an ") {
+        target = stripped.trim().to_string();
+    }
     if subject.is_empty() || target.is_empty() {
         return None;
     }
-    Some((subject.to_string(), target.to_string()))
+    Some((subject.to_string(), target))
 }
 
 fn parse_query_subject(input: &str) -> Option<String> {
@@ -250,6 +293,89 @@ fn parse_query_subject(input: &str) -> Option<String> {
         return if subject.is_empty() { None } else { Some(subject) };
     }
     None
+}
+
+fn parse_is_a_query(input: &str) -> Option<(String, String)> {
+    let normalized = input.trim().trim_end_matches('?').to_lowercase();
+    let mut rest = normalized.strip_prefix("is ")?.trim();
+
+    if let Some(stripped) = rest.strip_prefix("a ") {
+        rest = stripped.trim();
+    } else if let Some(stripped) = rest.strip_prefix("an ") {
+        rest = stripped.trim();
+    }
+
+    let (subject, target) = if let Some((subject, target)) = rest.split_once(" an ") {
+        (subject.trim(), target.trim())
+    } else if let Some((subject, target)) = rest.split_once(" a ") {
+        (subject.trim(), target.trim())
+    } else {
+        return None;
+    };
+
+    if subject.is_empty() || target.is_empty() {
+        return None;
+    }
+
+    Some((subject.to_string(), target.to_string()))
+}
+
+fn parse_query(input: &str) -> Option<Query> {
+    if let Some((subject, target)) = parse_is_a_query(input) {
+        return Some(Query::IsA { subject, target });
+    }
+
+    parse_query_subject(input).map(|subject| Query::Describe { subject })
+}
+
+fn article_for(word: &str) -> &'static str {
+    match word.chars().next() {
+        Some('a' | 'e' | 'i' | 'o' | 'u') => "an",
+        _ => "a",
+    }
+}
+
+impl CSIFAgent {
+    fn direct_is_a_targets(&self, subject: &str) -> Vec<String> {
+        let mut is_a_targets = Vec::new();
+        for edge in self.crystal.edges.values() {
+            let Some(source_label) = node_label_by_id(&self.crystal, &edge.source) else {
+                continue;
+            };
+            if source_label == subject && edge.relation == "is_a" {
+                if let Some(target_label) = node_label_by_id(&self.crystal, &edge.target) {
+                    is_a_targets.push(target_label.to_string());
+                }
+            }
+        }
+        is_a_targets
+    }
+
+    fn has_transitive_is_a(&self, subject: &str, target: &str) -> bool {
+        if subject == target {
+            return true;
+        }
+
+        let mut visited = HashSet::new();
+        let mut queue = VecDeque::from([subject.to_string()]);
+
+        while let Some(current) = queue.pop_front() {
+            if !visited.insert(current.clone()) {
+                continue;
+            }
+
+            for next in self.direct_is_a_targets(&current) {
+                if next == target {
+                    return true;
+                }
+                if !visited.contains(&next) {
+                    queue.push_back(next);
+                }
+            }
+        }
+
+        false
+    }
 }
 
 fn ensure_node(crystal: &mut RWIFCrystal, label: &str) -> String {
@@ -270,4 +396,44 @@ fn ensure_node(crystal: &mut RWIFCrystal, label: &str) -> String {
 
 fn node_label_by_id<'a>(crystal: &'a RWIFCrystal, node_id: &str) -> Option<&'a str> {
     crystal.nodes.get(node_id).map(|n| n.label.as_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_bank_path(name: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("csif_agent_{name}_{nanos}.json"))
+    }
+
+    #[test]
+    fn describe_query_returns_direct_is_a_fact() {
+        let bank_path = temp_bank_path("describe");
+        let mut agent = CSIFAgent::load_or_create(&bank_path).unwrap();
+
+        assert_eq!(agent.teach("A whale is a mammal."), "[TEACHING] Knowledge crystallized.");
+
+        let answer = agent.query("What is a whale?");
+        assert_eq!(answer, "[CRYSTAL] A whale is a mammal.");
+
+        let _ = std::fs::remove_file(bank_path);
+    }
+
+    #[test]
+    fn is_a_query_uses_transitive_inference() {
+        let bank_path = temp_bank_path("transitive");
+        let mut agent = CSIFAgent::load_or_create(&bank_path).unwrap();
+
+        assert_eq!(agent.teach("A whale is a mammal."), "[TEACHING] Knowledge crystallized.");
+        assert_eq!(agent.teach("A mammal is an animal."), "[TEACHING] Knowledge crystallized.");
+
+        let answer = agent.query("Is a whale an animal?");
+        assert_eq!(answer, "[CRYSTAL] YES: a whale is an animal.");
+
+        let _ = std::fs::remove_file(bank_path);
+    }
 }
