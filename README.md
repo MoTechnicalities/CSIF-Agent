@@ -7,6 +7,10 @@
 
 > **Deterministic, auditable, CPU-native intelligence. No GPU. No cloud. No hallucination.**
 
+![CSIF-Agent contradiction rejection demo](assets/CSIF-Agent20260519.png)
+
+The repository name is `CSIF-Agent`, and the clone/install commands below use that name consistently.
+
 ## Read the Whitepaper
 
 For a comprehensive overview of CSIF-Agent architecture, capabilities, validation, and roadmap, see [WHITEPAPER.md](WHITEPAPER.md).
@@ -99,6 +103,16 @@ cd CSIF-Agent
 cargo build --release
 ./target/release/agent_demo
 ```
+
+## One-Command Demo
+
+Run the full local teach/query/contradiction flow with one command:
+
+```bash
+./run_demo.sh
+```
+
+The script builds the server, starts it with an isolated temporary RWIF bank, runs health/teach/query/compute/contradiction checks, prints every response, and shuts the server down cleanly.
 
 ### Data-Driven Grammar
 
@@ -210,7 +224,7 @@ Apache 2.0. See LICENSE.
 ## Citation
 
 ```bibtex
-@software{CSIF_Rust_Trio_2026,
+@software{CSIF_Agent_2026,
 	author = {Mogir Jason Rofick},
 	title = {CSIF-Agent: Geometric Intelligence for CPU-Native Agents},
 	year = {2026},
