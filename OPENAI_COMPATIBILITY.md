@@ -65,7 +65,7 @@ The compatibility layer accepts bearer-style Authorization headers for client co
 import openai
 
 openai.api_key = "any-value-works"
-openai.base_url = "http://192.168.68.122:18080/v1"
+openai.base_url = "http://localhost:18080/v1"  # or http://<your-host-ip>:18080/v1
 
 response = openai.ChatCompletion.create(
     model="csif-agent",
@@ -77,7 +77,7 @@ print(response.choices[0].message.content)
 ### Curl
 
 ```bash
-curl http://192.168.68.122:18080/v1/chat/completions \
+curl http://localhost:18080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer any-key" \
   -d '{
@@ -92,7 +92,7 @@ curl http://192.168.68.122:18080/v1/chat/completions \
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    base_url="http://192.168.68.122:18080/v1",
+  base_url="http://localhost:18080/v1",  # or http://<your-host-ip>:18080/v1
     api_key="any",
     model="csif-agent"
 )

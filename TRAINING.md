@@ -138,6 +138,28 @@ docker restart csif-agent
 
 No code changes. No recompilation. No database wipe.
 
+## 2.4 Not Backpropagation: What Learning Means Here
+
+CSIF-Agent does not use backpropagation. There is no loss-function training loop, no gradient descent, and no hidden-weight optimization process.
+
+Instead, the learning loop is:
+
+1. Parse a teaching statement into a structured relation.
+2. Check contradiction against existing crystal-bank state.
+3. Append a new trajectory edge if consistent.
+4. Use relation-aware traversal for future inference.
+
+In short: knowledge is explicit and append-only, reasoning is path-based, and contradiction is geometric (phase conflict near $\pi$) rather than loss-based.
+
+| Aspect | Backpropagation Systems | CSIF-Agent |
+| :--- | :--- | :--- |
+| Learned object | Dense weight tensors | Explicit semantic edges |
+| Update rule | Gradient descent | Append validated trajectory |
+| Error signal | Scalar loss | Contradiction phase conflict |
+| Inference | Matrix multiplication | Graph/path traversal |
+| Determinism | Typically non-deterministic | Deterministic for same state/query |
+| Auditability | Limited | Full path and provenance trace |
+
 ## 3. The Relation Registry: Teaching the Agent How to Reason
 
 ### 3.1 From Hardcoded Inference to Declarative Rules

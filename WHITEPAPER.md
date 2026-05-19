@@ -67,6 +67,19 @@ CSIF-Agent is a geometric inference engine built for deterministic behavior and 
 | Zero Cloud Requirement | No mandatory external API calls |
 | Cost Predictability | No mandatory recurring API costs |
 
+### Learning Paradigm: Geometric Phase Inference
+
+CSIF-Agent is not a backpropagation system. It does not optimize hidden weights with gradient descent. Instead, it stores explicit semantic edges and reasons through deterministic graph traversal with phase-aware consistency checks.
+
+| Neural Backpropagation Flow | CSIF-Agent Flow |
+| :--- | :--- |
+| Loss minimization over weights | Phase alignment over explicit relations |
+| Weight updates | Append-only trajectory updates |
+| Matrix-heavy inference | Path-following inference |
+| Opaque internal state | Auditable edge/path state |
+
+Operationally, this means the system learns by teaching (edge insertion), reasons by relation-aware traversal, and rejects contradiction via high phase conflict (near anti-phase around $\pi$ radians).
+
 ---
 
 ## Architecture

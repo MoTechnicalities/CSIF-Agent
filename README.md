@@ -86,6 +86,37 @@ CSIF-Agent implements **phase geometry** over a four-dimensional knowledge subst
 
 **The result:** a CPU-native agent that learns, remembers, rejects contradictions, and responds in milliseconds — all on your existing hardware.
 
+## Learning Method: Not Backpropagation
+
+CSIF-Agent does not learn with backpropagation or gradient descent. It learns through geometric phase inference over an append-only crystal bank.
+
+| Classical Neural Networks | CSIF-Agent |
+|---|---|
+| Backpropagation | Geometric phase inference |
+| Gradient descent | Path following |
+| Loss minimization | Phase alignment |
+| Weight updates | Trajectory appending |
+| Non-deterministic | Deterministic |
+| Often GPU-oriented | CPU-native |
+| Opaque decision path | Auditable decision path |
+
+### How CSIF-Agent Learns and Reasons
+
+1. Teach step: Parse structured knowledge, assign relation phase, and append an edge to RWIF if no contradiction is detected.
+2. Infer step: Answer by direct edge lookup and transitive path traversal for supported relations.
+3. Contradiction signal: Treat large phase conflict (near anti-phase, around $\pi$ radians) as a structural contradiction and reject the write.
+
+### Why This Matters
+
+- Deterministic responses for identical bank state and query input.
+- Full reasoning trace from explicit edges instead of hidden weights.
+- No catastrophic overwrite behavior from retraining loops, because memory is append-only.
+- Low compute path on commodity CPU hardware.
+
+One-line summary:
+
+"CSIF-Agent does not use backpropagation. It learns via geometric phase inference: teaching appends edges to a crystal bank, reasoning follows graph paths, and contradiction is measured as a near-$\pi$ phase shift."
+
 ## Performance (Rust Native)
 
 | Operation | Throughput | Latency |
