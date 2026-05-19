@@ -6,6 +6,7 @@ RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
+COPY grammar.toml ./
 COPY crates ./crates
 COPY apps ./apps
 
@@ -31,9 +32,11 @@ RUN mkdir -p /data && chown -R csif:csif /data /app
 
 ARG TARGETARCH
 COPY --from=builder /out/agent_demo /app/agent_demo
+COPY grammar.toml /app/grammar.toml
 RUN chmod +x /app/agent_demo
 
 ENV CSIF_BANK_PATH=/data/my_brain.rwif
+ENV CSIF_GRAMMAR_PATH=/app/grammar.toml
 EXPOSE 8080
 VOLUME ["/data"]
 

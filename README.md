@@ -15,6 +15,7 @@ Run the agent in seconds with no Rust toolchain:
 docker run -d --name csif-agent --restart unless-stopped \
 	-p 8080:8080 \
 	-e CSIF_BANK_PATH=/data/my_brain.rwif \
+	-e CSIF_GRAMMAR_PATH=/app/grammar.toml \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
@@ -48,6 +49,7 @@ docker stop csif-agent && docker rm csif-agent
 docker run -d --name csif-agent --restart unless-stopped \
 	-p 8080:8080 \
 	-e CSIF_BANK_PATH=/data/my_brain.rwif \
+	-e CSIF_GRAMMAR_PATH=/app/grammar.toml \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
@@ -86,6 +88,14 @@ git clone https://github.com/MoTechnicalities/CSIF-Agent
 cd CSIF-Agent
 cargo build --release
 ./target/release/agent_demo
+```
+
+### Data-Driven Grammar
+
+Parsing rules are loaded from `grammar.toml` at startup. You can add new phrasing patterns by editing this file and restarting the agent, without recompiling or wiping the crystal bank.
+
+```bash
+CSIF_GRAMMAR_PATH=./grammar.toml ./target/release/agent_demo
 ```
 
 ```bash
@@ -141,7 +151,7 @@ curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d 
 ## Honest Limitations
 - Concept extraction from natural language is minimal (requires structured input or tiny LLM translator)
 - Scale validation at 10K+ crystals not yet characterized
-- No multi-hop reasoning beyond direct edge lookup (planned)
+- Multi-hop reasoning currently supports transitive `is_a` chains; broader relation inference is planned
 
 ## Contributing
 See CONTRIBUTING.md. All contributions must maintain:
