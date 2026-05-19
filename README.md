@@ -13,6 +13,10 @@ For a comprehensive overview of CSIF-Agent architecture, capabilities, validatio
 
 For an implementation-focused evolution of parser and training strategy, see [TRAINING.md](TRAINING.md).
 
+For OpenAI-compatible client integration details, see [OPENAI_COMPATIBILITY.md](OPENAI_COMPATIBILITY.md).
+
+The compatibility layer now includes richer `/v1/models` metadata and `GET /v1/models/:id` lookup for client discovery.
+
 ## Docker (Recommended)
 
 Run the agent in seconds with no Rust toolchain:
