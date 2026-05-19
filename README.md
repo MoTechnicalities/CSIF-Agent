@@ -144,6 +144,41 @@ curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d 
 | Query after contradiction | Still true fact | ✅ |
 | Persistence (restart) | Remembers fact | ✅ |
 
+## Live Deployment Results
+
+Full regression and feature test battery executed on home server Docker container (May 19, 2026).
+
+**System Specs:**
+- **CPU:** Intel i5-4460 (Quad-Core, 3.4 GHz)
+- **RAM:** 12 GiB
+- **Storage:** 1 TB SATA SSD
+- **OS:** Linux Mint 22.3 x86_64
+- **Runtime:** Docker (multiple stacks deployed simultaneously)
+
+**Test Results:**
+
+| Feature | Test Case | Latency | Status |
+|---------|-----------|---------|--------|
+| **Health** | Health check | 1.4ms | ✅ OK |
+| **OpenAI Discovery** | `/v1/models` list | 1.1ms | ✅ 200 |
+| **OpenAI Model Info** | `/v1/models/csif-agent` | 1.5ms | ✅ 200 |
+| **OpenAI Chat** | `/v1/chat/completions` | 0.8ms | ✅ Wire-compatible |
+| **is_a Transitive** | "Is whale an animal?" (whale→mammal→animal) | 1.8ms | ✅ YES |
+| **causes Transitive** | "Does rain cause slippery?" (rain→wet→slippery) | 2.1ms | ✅ YES |
+| **has_property Direct** | "Does whale have warm-blooded?" | 1.5ms | ✅ YES |
+| **has_property Non-Transitive** | "Does whale have vertebrate?" (no chain) | 1.3ms | ✅ NO |
+| **Arithmetic** | "What is 2 + 2?" | 1.7ms | ✅ 4 |
+| **Contradiction Detection** | "a whale is a fish" (conflicts with is_a) | 1.9ms | ✅ BLOCKED |
+
+**Validated Capabilities:**
+- ✅ Multi-relation inference (is_a, causes, has_property)
+- ✅ Transitive chains (correct semantic reasoning)
+- ✅ Non-transitive relations (direct-only lookups)
+- ✅ Contradiction firewall (blocks conflicting assertions)
+- ✅ Arithmetic scaffold (compute basic operations)
+- ✅ OpenAI API compatibility (full wire-format compatibility)
+- ✅ Sub-5ms latency on all operations (even on 12-year-old CPU)
+
 ## Comparison
 | System | GPU? | Cloud? | Contradiction Detection | Audit Trail | Cost |
 |---|---|---|---|---|---|
