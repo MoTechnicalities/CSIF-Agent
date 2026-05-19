@@ -37,10 +37,23 @@ docker compose up -d
 ## Environment Variables
 
 - `CSIF_BANK_PATH`: Path to the RWIF crystal bank file. Default in container is `/data/my_brain.rwif`.
+- `CSIF_PORT`: HTTP listen port inside the container. Default is `8080`.
 - `IMAGE`: Override image name for scripts.
 - `HOST_PORT`: Override host port in `docker-run.sh`.
 - `CONTAINER_NAME`: Override container name in `docker-run.sh`.
 - `DATA_VOLUME`: Override Docker volume name in `docker-run.sh`.
+
+## Port Configuration
+
+By default, the agent listens on port `8080` inside the container. You can change both the internal and external ports:
+
+| Scenario | Command |
+| :--- | :--- |
+| Change external port only | `docker run -p 3000:8080 csif-agent:latest` |
+| Change both ports | `docker run -e CSIF_PORT=3000 -p 3000:3000 csif-agent:latest` |
+| Run multiple agents | Use different external ports for each |
+
+**Why this matters:** Run different agents for different domains (medical, legal, personal) on different ports, each with its own crystal bank volume.
 
 ## Volume Mounts
 
