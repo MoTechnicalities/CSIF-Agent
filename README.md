@@ -7,6 +7,10 @@
 
 > **Deterministic, auditable, CPU-native intelligence. No GPU. No cloud. No hallucination.**
 
+## Read the Whitepaper
+
+For a comprehensive overview of CSIF-Agent architecture, capabilities, validation, and roadmap, see [WHITEPAPER.md](WHITEPAPER.md).
+
 ## Docker (Recommended)
 
 Run the agent in seconds with no Rust toolchain:
