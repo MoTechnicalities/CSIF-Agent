@@ -46,12 +46,19 @@ impl CSIFAgent {
 
     /// Process a natural language query (or structured input)
     pub fn query(&mut self, input: &str) -> String {
+        // Extract subject from question (e.g., 'whale' from 'What is a whale?')
+        let Some(subject) = parse_query_subject(input) else {
+            return "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string();
+        };
+
         let query_phase = 0.0;
         let query_sigma = 0.02;
         let resonance_threshold = 0.05;
         let sigma_threshold = 0.05;
+
+        // Use subject as cache key, not the entire question
         match self.cache.preflight(
-            input,
+            &subject,
             query_phase,
             query_sigma,
             &self.crystal,
@@ -63,31 +70,21 @@ impl CSIFAgent {
                 format!("[CACHE] {}", response.response)
             }
             PreflightResult::CacheMiss => {
-                if let Some(answer) = self.answer_from_crystal(input) {
+                if let Some(answer) = self.answer_from_crystal(&subject) {
                     let cached = CachedResponse {
                         response: answer.clone(),
                         resonance: 0.0,
                         sigma: query_sigma,
-                        candidate_node_id: "unknown".to_string(),
+                        candidate_node_id: format!("n_{}", slug(&subject)),
                     };
-                    self.cache.insert(input, query_phase, query_sigma, cached);
+                    self.cache.insert(&subject, query_phase, query_sigma, cached);
                     format!("[CRYSTAL] {}", answer)
                 } else {
                     "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
                 }
             }
             PreflightResult::NeedsDeepValidation => {
-                if self.check_contradiction(input) {
-                    return "[CONTRADICTION] That contradicts what I already know.".to_string();
-                }
-                if self.learn_from_input(input) {
-                    self.save().unwrap_or_default();
-                    if let Some(answer) = self.answer_from_crystal(input) {
-                        format!("[CRYSTAL] {}", answer)
-                    } else {
-                        "[LEARNED] I've incorporated that knowledge.".to_string()
-                    }
-                } else if let Some(answer) = self.answer_from_crystal(input) {
+                if let Some(answer) = self.answer_from_crystal(&subject) {
                     format!("[CRYSTAL] {}", answer)
                 } else {
                     "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
@@ -240,7 +237,14 @@ fn parse_fact_is_a(input: &str) -> Option<(String, String)> {
 fn parse_query_subject(input: &str) -> Option<String> {
     let normalized = input.trim().to_lowercase();
     if let Some(rest) = normalized.strip_prefix("what is ") {
-        return Some(rest.trim().trim_end_matches('?').to_string());
+        let mut subject = rest.trim().trim_end_matches('?').to_string();
+        // Strip leading articles ("a " or "an ") from subject
+        if subject.starts_with("a ") {
+            subject = subject[2..].to_string();
+        } else if subject.starts_with("an ") {
+            subject = subject[3..].to_string();
+        }
+        return if subject.is_empty() { None } else { Some(subject) };
     }
     None
 }
