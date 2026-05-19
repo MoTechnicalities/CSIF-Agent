@@ -11,6 +11,8 @@
 
 For a comprehensive overview of CSIF-Agent architecture, capabilities, validation, and roadmap, see [WHITEPAPER.md](WHITEPAPER.md).
 
+For an implementation-focused evolution of parser and training strategy, see [TRAINING.md](TRAINING.md).
+
 ## Docker (Recommended)
 
 Run the agent in seconds with no Rust toolchain:
