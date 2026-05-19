@@ -1,11 +1,56 @@
-## CSIF-Rust-Trio: Geometric Intelligence for CPU-Native Agents
+## CSIF-Agent: Geometric Intelligence for CPU-Native Agents
 
 [![Rust](https://img.shields.io/badge/rust-1.80+-blue.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Benchmarks](https://img.shields.io/badge/benchmarks-99M%20ops%2Fs-brightgreen)](docs/BENCHMARKS.md)
-[![Stars](https://img.shields.io/github/stars/MoTechnicalities/CSIF-Rust-Trio?style=social)](https://github.com/MoTechnicalities/CSIF-Rust-Trio)
+[![Stars](https://img.shields.io/github/stars/MoTechnicalities/CSIF-Agent?style=social)](https://github.com/MoTechnicalities/CSIF-Agent)
 
 > **Deterministic, auditable, CPU-native intelligence. No GPU. No cloud. No hallucination.**
+
+## Docker (Recommended)
+
+Run the agent in seconds with no Rust toolchain:
+
+```bash
+docker run -d --name csif-agent --restart unless-stopped \
+	-p 8080:8080 \
+	-e CSIF_BANK_PATH=/data/my_brain.rwif \
+	-v csif-agent-data:/data \
+	ghcr.io/motechnicalities/csif-agent:latest
+```
+
+### Docker Compose
+
+```bash
+docker compose up -d
+```
+
+### Pull From GHCR
+
+```bash
+docker pull ghcr.io/motechnicalities/csif-agent:latest
+```
+
+### Multi-Arch Support
+
+- `linux/amd64` (Intel/AMD)
+- `linux/arm64` (Apple Silicon, ARM servers, Raspberry Pi)
+
+### Persistence
+
+Knowledge is stored in `/data/my_brain.rwif` inside the container. Mount `/data` to a named volume or host path so memory survives restarts.
+
+### Upgrade
+
+```bash
+docker pull ghcr.io/motechnicalities/csif-agent:latest
+docker stop csif-agent && docker rm csif-agent
+docker run -d --name csif-agent --restart unless-stopped \
+	-p 8080:8080 \
+	-e CSIF_BANK_PATH=/data/my_brain.rwif \
+	-v csif-agent-data:/data \
+	ghcr.io/motechnicalities/csif-agent:latest
+```
 
 ## The Problem
 
@@ -15,7 +60,7 @@ Every AI agent today pays a hidden tax: cloud APIs, GPU clusters, and probabilis
 
 ## The Solution
 
-CSIF-Rust-Trio implements **phase geometry** over a four-dimensional knowledge substrate:
+CSIF-Agent implements **phase geometry** over a four-dimensional knowledge substrate:
 
 - **Phase** = semantic alignment (0 = coherent, π = contradiction)
 - **RWIF** = append-only trajectories (full auditability)
@@ -34,11 +79,11 @@ CSIF-Rust-Trio implements **phase geometry** over a four-dimensional knowledge s
 | Agent cache hit | — | < 1 ms |
 | Contradiction check | — | < 10 µs |
 
-## Quick Start
+## Rust Quick Start (Alternative)
 
 ```bash
-git clone https://github.com/MoTechnicalities/CSIF-Rust-Trio
-cd CSIF-Rust-Trio
+git clone https://github.com/MoTechnicalities/CSIF-Agent
+cd CSIF-Agent
 cargo build --release
 ./target/release/agent_demo
 ```
@@ -85,7 +130,7 @@ curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d 
 | OpenClaw + Gemini | No | Yes | ❌ | ❌ | $$$ |
 | Local LLM (7B+) | 24GB+ | No | ❌ | ❌ | Hardware |
 | Vector DB + GPT | No | Yes | ❌ | ❌ | $$ |
-| CSIF-Rust-Trio | No | No | ✅ π residual | ✅ RWIF | $0 |
+| CSIF-Agent | No | No | ✅ π residual | ✅ RWIF | $0 |
 
 ## Roadmap
 - v1.1 SIMD acceleration (AVX-512) → 4B edges/sec
@@ -112,9 +157,9 @@ Apache 2.0. See LICENSE.
 ```bibtex
 @software{CSIF_Rust_Trio_2026,
 	author = {Mogir Jason Rofick},
-	title = {CSIF-Rust-Trio: Geometric Intelligence for CPU-Native Agents},
+	title = {CSIF-Agent: Geometric Intelligence for CPU-Native Agents},
 	year = {2026},
-	url = {https://github.com/MoTechnicalities/CSIF-Rust-Trio},
+	url = {https://github.com/MoTechnicalities/CSIF-Agent},
 	license = {Apache-2.0}
 }
 ```

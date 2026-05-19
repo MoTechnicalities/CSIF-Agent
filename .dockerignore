@@ -1,0 +1,8 @@
+target/
+my_brain.rwif
+cache.json
+.git/
+.github/
+*.md
+!README.md
+docs/

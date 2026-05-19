@@ -6,12 +6,14 @@ use csif_sync::{SyncVerdict, SyncDelta, evaluate_delta};
 use rwif_core::{RWIFCrystal, RWIFNode, RWIFEdge, PhaseEvent, Provenance};
 use chrono::Utc;
 use std::path::Path;
+use std::path::PathBuf;
 use std::error::Error;
 
 pub struct CSIFAgent {
     pub cache: QueryCache,
     pub index: InvertedIndex,
     pub crystal: RWIFCrystal,
+    pub bank_path: PathBuf,
     // Guard is built from crystal on demand
     // Sync is optional (for multi-agent setups)
 }
@@ -35,12 +37,13 @@ impl CSIFAgent {
             cache: QueryCache::new(),
             index,
             crystal,
+            bank_path: bank_path.to_path_buf(),
         })
     }
 
     /// Save crystal bank to disk
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
-        self.crystal.save_to_path(Path::new("./my_brain.rwif"))?;
+        self.crystal.save_to_path(&self.bank_path)?;
         Ok(())
     }
 

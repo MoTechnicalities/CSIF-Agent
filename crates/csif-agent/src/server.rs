@@ -1,7 +1,7 @@
 use axum::{
     extract::State,
     response::Json,
-    routing::post,
+    routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ struct QueryResponse {
 
 pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
     let app = Router::new()
+        .route("/health", get(health_handler))
         .route("/query", post(query_handler))
         .route("/teach", post(teach_handler))
         .with_state(agent);
@@ -47,4 +48,8 @@ async fn teach_handler(
     let mut agent = agent.lock().unwrap();
     let answer = agent.teach(&req.text);
     Json(QueryResponse { answer })
+}
+
+async fn health_handler() -> &'static str {
+    "ok"
 }
