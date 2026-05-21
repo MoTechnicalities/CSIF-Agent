@@ -16,9 +16,27 @@ pub struct AgentMetadata {
     pub grammar_version: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LobeState {
+    pub applied: Vec<AppliedLobe>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppliedLobe {
+    pub id: String,
+    pub version: String,
+    pub fingerprint: String,
+}
+
 pub fn metadata_path_for_bank(bank_path: &Path) -> PathBuf {
     let mut path = bank_path.to_path_buf();
     path.set_extension("meta.json");
+    path
+}
+
+pub fn lobe_state_path_for_bank(bank_path: &Path) -> PathBuf {
+    let mut path = bank_path.to_path_buf();
+    path.set_extension("lobes.json");
     path
 }
 
@@ -36,6 +54,24 @@ pub fn save_metadata(path: &Path, meta: &AgentMetadata) -> Result<(), Box<dyn Er
         fs::create_dir_all(parent)?;
     }
     let raw = serde_json::to_string_pretty(meta)?;
+    fs::write(path, raw)?;
+    Ok(())
+}
+
+pub fn load_lobe_state(path: &Path) -> Result<LobeState, Box<dyn Error>> {
+    if !path.exists() {
+        return Ok(LobeState::default());
+    }
+    let raw = fs::read_to_string(path)?;
+    let state: LobeState = serde_json::from_str(&raw)?;
+    Ok(state)
+}
+
+pub fn save_lobe_state(path: &Path, state: &LobeState) -> Result<(), Box<dyn Error>> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let raw = serde_json::to_string_pretty(state)?;
     fs::write(path, raw)?;
     Ok(())
 }

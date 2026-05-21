@@ -10,6 +10,7 @@ members = [
   "apps/demo_guard",
   "apps/demo_sync",
   "apps/agent_demo",
+  "apps/bulk_seed",
 ]
 resolver = "2"
 

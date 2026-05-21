@@ -2,17 +2,22 @@
 
 use crate::grammar::{Grammar, QueryIntent, TeachFact};
 use crate::metadata::{
-    load_metadata, metadata_path_for_bank, migrate_schema_v1_to_v2, save_metadata, AgentMetadata,
+    load_lobe_state, load_metadata, lobe_state_path_for_bank, metadata_path_for_bank,
+    migrate_schema_v1_to_v2, save_lobe_state, save_metadata, AgentMetadata, AppliedLobe,
     CURRENT_SCHEMA_VERSION,
 };
 use crate::relation::{RelationRegistry, RelationType};
 use chrono::Utc;
 use csif_cache::{CachedResponse, InvertedIndex, PreflightResult, QueryCache};
-use csif_guard::PhaseGraph;
 use csif_sync::{evaluate_delta, SyncDelta, SyncVerdict};
 use rwif_core::{PhaseEvent, Provenance, RWIFCrystal, RWIFEdge, RWIFNode};
-use std::collections::{HashSet, VecDeque};
+use semver::{Version, VersionReq};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
+use std::fs;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 pub struct CSIFAgent {
@@ -22,8 +27,38 @@ pub struct CSIFAgent {
     pub bank_path: PathBuf,
     pub grammar: Grammar,
     pub relation_registry: RelationRegistry,
+    index_dirty: bool,
+    save_every: usize,
+    pending_saves: usize,
     // Guard is built from crystal on demand
     // Sync is optional (for multi-agent setups)
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct LobeRefreshReport {
+    pub discovered: usize,
+    pub applied: usize,
+    pub skipped: usize,
+    pub taught: usize,
+    pub ignored: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct LobeManifest {
+    id: String,
+    version: String,
+    seed_files: Vec<String>,
+    compatible_agent: Option<String>,
+    priority: Option<i32>,
+    enabled: Option<bool>,
+    checksum_sha256: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone)]
+struct LobeBundle {
+    bundle_dir: PathBuf,
+    manifest_path: PathBuf,
+    manifest: LobeManifest,
 }
 
 impl CSIFAgent {
@@ -90,14 +125,33 @@ impl CSIFAgent {
         let mut index = InvertedIndex::new();
         index.index_crystal(&crystal);
 
-        Ok(CSIFAgent {
+        let save_every = std::env::var("CSIF_SAVE_EVERY")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(1);
+
+        let mut agent = CSIFAgent {
             cache: QueryCache::new(),
             index,
             crystal,
             bank_path: bank_path.to_path_buf(),
             grammar,
             relation_registry: RelationRegistry::default(),
-        })
+            index_dirty: false,
+            save_every,
+            pending_saves: 0,
+        };
+
+        if std::env::var("CSIF_LOBES_DIR").is_ok() {
+            let report = agent.refresh_lobes_from_env()?;
+            eprintln!(
+                "Lobe refresh: discovered={} applied={} skipped={} ignored={} taught={}",
+                report.discovered, report.applied, report.skipped, report.ignored, report.taught
+            );
+        }
+
+        Ok(agent)
     }
 
     /// Save crystal bank to disk
@@ -108,6 +162,11 @@ impl CSIFAgent {
 
     /// Process a natural language query (or structured input)
     pub fn query(&mut self, input: &str) -> String {
+        if self.index_dirty {
+            self.index.index_crystal(&self.crystal);
+            self.index_dirty = false;
+        }
+
         let Some(intent) = self.grammar.parse_query(input) else {
             return "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string();
         };
@@ -124,6 +183,10 @@ impl CSIFAgent {
             };
             self.cache.insert(&cache_key, query_phase, query_sigma, cached);
             return format!("[CRYSTAL] {}", answer);
+        }
+
+        if matches!(intent, QueryIntent::Describe { .. }) {
+            return "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string();
         }
 
         let cache_key = cache_key_for_intent(&intent);
@@ -158,8 +221,209 @@ impl CSIFAgent {
         if !self.learn_from_fact(&fact) {
             return "[NEEDS_INPUT] I couldn't map that statement to a supported relation.".to_string();
         }
-        self.save().unwrap_or_default();
+
+        self.pending_saves = self.pending_saves.saturating_add(1);
+        if self.pending_saves >= self.save_every {
+            self.save().unwrap_or_default();
+            self.pending_saves = 0;
+        }
+
         "[TEACHING] Knowledge crystallized.".to_string()
+    }
+
+    /// Fast path for curated seed facts: parse + ingest without contradiction gate.
+    pub fn ingest_seed_fact(&mut self, input: &str) -> bool {
+        let Some(fact) = self.grammar.parse_teach(input) else {
+            return false;
+        };
+
+        if !self.learn_from_fact(&fact) {
+            return false;
+        }
+
+        self.pending_saves = self.pending_saves.saturating_add(1);
+        if self.pending_saves >= self.save_every {
+            self.save().ok();
+            self.pending_saves = 0;
+        }
+
+        true
+    }
+
+    /// Flush pending batched work to disk/index.
+    pub fn flush(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.index_dirty {
+            self.index.index_crystal(&self.crystal);
+            self.index_dirty = false;
+        }
+        if self.pending_saves > 0 {
+            self.save()?;
+            self.pending_saves = 0;
+        }
+        Ok(())
+    }
+
+    /// Load and apply lobe bundles from CSIF_LOBES_DIR, if configured.
+    pub fn refresh_lobes_from_env(&mut self) -> Result<LobeRefreshReport, Box<dyn Error>> {
+        let lobe_dir = match std::env::var("CSIF_LOBES_DIR") {
+            Ok(path) if !path.trim().is_empty() => PathBuf::from(path),
+            _ => return Ok(LobeRefreshReport::default()),
+        };
+        self.refresh_lobes_from_dir(&lobe_dir)
+    }
+
+    /// Return the persisted list of applied lobe bundles for the current bank.
+    pub fn applied_lobes(&self) -> Result<Vec<AppliedLobe>, Box<dyn Error>> {
+        let state_path = lobe_state_path_for_bank(&self.bank_path);
+        let state = load_lobe_state(&state_path)?;
+        Ok(state.applied)
+    }
+
+    /// Load and apply lobe bundles from an explicit directory.
+    pub fn refresh_lobes_from_dir(
+        &mut self,
+        lobe_dir: &Path,
+    ) -> Result<LobeRefreshReport, Box<dyn Error>> {
+        if !lobe_dir.exists() {
+            return Ok(LobeRefreshReport::default());
+        }
+
+        let strict = std::env::var("CSIF_LOBES_STRICT")
+            .ok()
+            .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+            .unwrap_or(false);
+
+        let bundles = collect_lobe_bundles(lobe_dir)?;
+        let mut report = LobeRefreshReport {
+            discovered: bundles.len(),
+            ..LobeRefreshReport::default()
+        };
+
+        let state_path = lobe_state_path_for_bank(&self.bank_path);
+        let mut lobe_state = load_lobe_state(&state_path)?;
+        let mut state_changed = false;
+
+        let mut sorted_bundles = bundles;
+        sorted_bundles.sort_by(|a, b| {
+            let ap = a.manifest.priority.unwrap_or(100);
+            let bp = b.manifest.priority.unwrap_or(100);
+            ap.cmp(&bp)
+                .then(a.manifest.id.cmp(&b.manifest.id))
+                .then(a.manifest.version.cmp(&b.manifest.version))
+        });
+
+        let agent_version = Version::parse(env!("CARGO_PKG_VERSION"))?;
+
+        for bundle in sorted_bundles {
+            match self.apply_lobe_bundle(&bundle, &agent_version, &mut lobe_state) {
+                Ok((applied, taught, ignored)) => {
+                    if applied {
+                        state_changed = true;
+                        report.applied += 1;
+                    } else {
+                        report.skipped += 1;
+                    }
+                    report.taught += taught;
+                    report.ignored += ignored;
+                }
+                Err(err) => {
+                    if strict {
+                        return Err(err);
+                    }
+                    eprintln!(
+                        "Skipping lobe bundle {} due to error: {}",
+                        bundle.manifest_path.display(),
+                        err
+                    );
+                    report.ignored += 1;
+                }
+            }
+        }
+
+        if state_changed {
+            save_lobe_state(&state_path, &lobe_state)?;
+        }
+
+        Ok(report)
+    }
+
+    fn apply_lobe_bundle(
+        &mut self,
+        bundle: &LobeBundle,
+        agent_version: &Version,
+        lobe_state: &mut crate::metadata::LobeState,
+    ) -> Result<(bool, usize, usize), Box<dyn Error>> {
+        if bundle.manifest.enabled == Some(false) {
+            return Ok((false, 0, 1));
+        }
+
+        if let Some(req) = &bundle.manifest.compatible_agent {
+            let req = VersionReq::parse(req)?;
+            if !req.matches(agent_version) {
+                return Ok((false, 0, 1));
+            }
+        }
+
+        let fingerprint = lobe_fingerprint(bundle)?;
+        let already_applied = lobe_state.applied.iter().any(|entry| {
+            entry.id == bundle.manifest.id
+                && entry.version == bundle.manifest.version
+                && entry.fingerprint == fingerprint
+        });
+        if already_applied {
+            return Ok((false, 0, 0));
+        }
+
+        let mut taught = 0usize;
+        let mut ignored = 0usize;
+        for rel_seed in &bundle.manifest.seed_files {
+            let seed_path = bundle.bundle_dir.join(rel_seed);
+            if !seed_path.exists() {
+                return Err(format!("missing seed file: {}", seed_path.display()).into());
+            }
+
+            if let Some(expected_hex) = bundle
+                .manifest
+                .checksum_sha256
+                .as_ref()
+                .and_then(|m| m.get(rel_seed))
+            {
+                let actual_hex = file_sha256_hex(&seed_path)?;
+                if actual_hex.to_lowercase() != expected_hex.to_lowercase() {
+                    return Err(format!(
+                        "checksum mismatch for {} (expected {}, got {})",
+                        seed_path.display(),
+                        expected_hex,
+                        actual_hex
+                    )
+                    .into());
+                }
+            }
+
+            let file = fs::File::open(&seed_path)?;
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                let raw = line?;
+                let fact = raw.trim();
+                if fact.is_empty() {
+                    continue;
+                }
+                if self.ingest_seed_fact(fact) {
+                    taught += 1;
+                } else {
+                    ignored += 1;
+                }
+            }
+        }
+
+        self.flush()?;
+        lobe_state.applied.push(AppliedLobe {
+            id: bundle.manifest.id.clone(),
+            version: bundle.manifest.version.clone(),
+            fingerprint,
+        });
+
+        Ok((true, taught, ignored))
     }
 
     /// Answer a query directly from the crystal (without cache)
@@ -170,12 +434,63 @@ impl CSIFAgent {
                 if !is_a_targets.is_empty() {
                     is_a_targets.sort();
                     is_a_targets.dedup();
-                    let rendered_targets = is_a_targets
+                    let rendered_target_items = is_a_targets
                         .iter()
                         .map(|target| format!("{} {}", article_for(target), target))
-                        .collect::<Vec<_>>()
-                        .join(" and ");
-                    return Some(format!("A {} is {}.", subject, rendered_targets));
+                        .collect::<Vec<_>>();
+                    let rendered_targets = natural_language_list_with_connector(
+                        &rendered_target_items,
+                        "and",
+                        true,
+                    );
+
+                    let properties = self.direct_targets_for_relation(subject, RelationType::HasProperty);
+                    let subtypes = self.subtypes_for(subject, RelationType::IsA);
+                    let templates = self.grammar.describe_templates();
+                    let mut response = render_describe_classification(
+                        &templates.classification,
+                        subject,
+                        &rendered_targets,
+                    );
+
+                    if !properties.is_empty() {
+                        let rendered_properties = properties
+                            .iter()
+                            .map(|property| property.replace('_', " "))
+                            .collect::<Vec<_>>();
+                        let property_list = natural_language_list_with_connector(
+                            &rendered_properties,
+                            &templates.property_connector,
+                            templates.oxford_comma,
+                        );
+                        append_describe_clause(
+                            &mut response,
+                            &templates.properties_intro,
+                            &property_list,
+                            &templates.properties_outro,
+                        );
+                    }
+
+                    if !subtypes.is_empty() && templates.max_subtype_examples > 0 {
+                        let rendered_subtypes = subtypes
+                            .iter()
+                            .take(templates.max_subtype_examples)
+                            .map(|subtype| subtype.replace('_', " "))
+                            .collect::<Vec<_>>();
+                        let subtype_list = natural_language_list_with_connector(
+                            &rendered_subtypes,
+                            &templates.subtype_connector,
+                            templates.oxford_comma,
+                        );
+                        append_describe_clause(
+                            &mut response,
+                            &templates.subtypes_intro,
+                            &subtype_list,
+                            &templates.subtypes_outro,
+                        );
+                    }
+
+                    return Some(response);
                 }
                 None
             }
@@ -211,9 +526,6 @@ impl CSIFAgent {
 
     /// Check if an input contradicts existing knowledge
     fn check_contradiction(&self, fact: &TeachFact) -> bool {
-        let graph = PhaseGraph::from_crystal(&self.crystal);
-        let _current_conflict = graph.max_multipath_conflict();
-
         let Some(relation_type) = RelationType::from_str(&fact.relation) else {
             return false;
         };
@@ -280,7 +592,7 @@ impl CSIFAgent {
             );
         }
 
-        self.index.index_crystal(&self.crystal);
+        self.index_dirty = true;
         true
     }
 
@@ -333,6 +645,30 @@ impl CSIFAgent {
             }
         }
         targets
+    }
+
+    fn subtypes_for(&self, parent: &str, relation: RelationType) -> Vec<String> {
+        let mut subtypes = Vec::new();
+        for edge in self.crystal.edges.values() {
+            if edge.relation != relation.as_str() {
+                continue;
+            }
+
+            let Some(target_label) = node_label_by_id(&self.crystal, &edge.target) else {
+                continue;
+            };
+            if target_label != parent {
+                continue;
+            }
+
+            if let Some(source_label) = node_label_by_id(&self.crystal, &edge.source) {
+                subtypes.push(source_label.to_string());
+            }
+        }
+
+        subtypes.sort();
+        subtypes.dedup();
+        subtypes
     }
 
     /// Sync with another agent (for multi-agent setups)
@@ -424,6 +760,46 @@ fn article_for(word: &str) -> &'static str {
     }
 }
 
+fn natural_language_list_with_connector(
+    items: &[String],
+    connector: &str,
+    oxford_comma: bool,
+) -> String {
+    match items.len() {
+        0 => String::new(),
+        1 => items[0].clone(),
+        2 => format!("{} {} {}", items[0], connector, items[1]),
+        _ => {
+            let head = items[..items.len() - 1].join(", ");
+            if oxford_comma {
+                format!("{}, {} {}", head, connector, items[items.len() - 1])
+            } else {
+                format!("{} {} {}", head, connector, items[items.len() - 1])
+            }
+        }
+    }
+}
+
+fn render_describe_classification(template: &str, subject: &str, direct: &str) -> String {
+    template
+        .replace("{subject}", subject)
+        .replace("{direct}", direct)
+}
+
+fn append_describe_clause(response: &mut String, intro: &str, content: &str, outro: &str) {
+    if intro.trim().is_empty() || content.trim().is_empty() {
+        return;
+    }
+
+    if !response.ends_with(' ') {
+        response.push(' ');
+    }
+    response.push_str(intro.trim());
+    response.push(' ');
+    response.push_str(content);
+    response.push_str(outro);
+}
+
 fn ensure_node(crystal: &mut RWIFCrystal, label: &str) -> String {
     if let Some((id, _)) = crystal.nodes.iter().find(|(_, n)| n.label == label) {
         return id.clone();
@@ -444,6 +820,93 @@ fn node_label_by_id<'a>(crystal: &'a RWIFCrystal, node_id: &str) -> Option<&'a s
     crystal.nodes.get(node_id).map(|n| n.label.as_str())
 }
 
+fn collect_lobe_bundles(lobe_dir: &Path) -> Result<Vec<LobeBundle>, Box<dyn Error>> {
+    let mut manifest_paths = Vec::<PathBuf>::new();
+
+    let mut roots = fs::read_dir(lobe_dir)?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .collect::<Vec<_>>();
+    roots.sort_by_key(|entry| entry.path());
+
+    for root in roots {
+        let root_path = root.path();
+        let direct_manifest = root_path.join("lobe.toml");
+        if direct_manifest.exists() {
+            manifest_paths.push(direct_manifest);
+        }
+
+        let mut nested = fs::read_dir(&root_path)?
+            .filter_map(Result::ok)
+            .filter(|entry| entry.path().is_dir())
+            .collect::<Vec<_>>();
+        nested.sort_by_key(|entry| entry.path());
+        for child in nested {
+            let nested_manifest = child.path().join("lobe.toml");
+            if nested_manifest.exists() {
+                manifest_paths.push(nested_manifest);
+            }
+        }
+    }
+
+    manifest_paths.sort();
+    manifest_paths.dedup();
+
+    let mut bundles = Vec::new();
+    for manifest_path in manifest_paths {
+        let raw = fs::read_to_string(&manifest_path)?;
+        let manifest: LobeManifest = toml::from_str(&raw)?;
+        if manifest.id.trim().is_empty() {
+            return Err(format!("invalid lobe id in {}", manifest_path.display()).into());
+        }
+        if manifest.version.trim().is_empty() {
+            return Err(format!("invalid lobe version in {}", manifest_path.display()).into());
+        }
+        if manifest.seed_files.is_empty() {
+            return Err(format!("no seed_files in {}", manifest_path.display()).into());
+        }
+
+        bundles.push(LobeBundle {
+            bundle_dir: manifest_path
+                .parent()
+                .ok_or("manifest has no parent directory")?
+                .to_path_buf(),
+            manifest_path,
+            manifest,
+        });
+    }
+
+    Ok(bundles)
+}
+
+fn lobe_fingerprint(bundle: &LobeBundle) -> Result<String, Box<dyn Error>> {
+    let mut hasher = Sha256::new();
+
+    let manifest_raw = fs::read(&bundle.manifest_path)?;
+    hasher.update(b"manifest:");
+    hasher.update(&manifest_raw);
+
+    let mut seed_files = bundle.manifest.seed_files.clone();
+    seed_files.sort();
+    for rel in seed_files {
+        let seed_path = bundle.bundle_dir.join(&rel);
+        let raw = fs::read(&seed_path)?;
+        hasher.update(b"seed:");
+        hasher.update(rel.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(raw);
+    }
+
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn file_sha256_hex(path: &Path) -> Result<String, Box<dyn Error>> {
+    let raw = fs::read(path)?;
+    let mut hasher = Sha256::new();
+    hasher.update(raw);
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -454,10 +917,10 @@ mod tests {
 version = "v2"
 
 [query]
-what_is = "^what is (?:a|an)?\\s*(.+?)\\?$"
-is_a_confirm = "^is (?:a|an )?(.+?) (?:a|an) (.+?)\\?$"
-causes_confirm = "^does (?:a|an )?(.+?) cause (.+?)\\?$"
-has_property_confirm = "^does (?:a|an )?(.+?) have (.+?)\\?$"
+what_is = "^what is (?:(?:a|an)\\s+)?(.+?)\\?$"
+is_a_confirm = "^is (?:(?:a|an)\\s+)?(.+?) (?:a|an) (.+?)\\?$"
+causes_confirm = "^does (?:(?:a|an)\\s+)?(.+?) cause (.+?)\\?$"
+has_property_confirm = "^does (?:(?:a|an)\\s+)?(.+?) have (.+?)\\?$"
 add_compute = "^what is\\s+(-?\\d+(?:\\.\\d+)?)\\s*\\+\\s*(-?\\d+(?:\\.\\d+)?)\\?$"
 
 [teach]

@@ -6,14 +6,23 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
-const DEFAULT_QUERY_WHAT_IS: &str = r"^what is (?:a|an)?\s*(.+?)\?$";
-const DEFAULT_QUERY_IS_A_CONFIRM: &str = r"^is (?:a|an )?(.+?) (?:a|an) (.+?)\?$";
-const DEFAULT_QUERY_CAUSES_CONFIRM: &str = r"^does (?:a|an )?(.+?) cause (.+?)\?$";
-const DEFAULT_QUERY_HAS_PROPERTY_CONFIRM: &str = r"^does (?:a|an )?(.+?) have (.+?)\?$";
+const DEFAULT_QUERY_WHAT_IS: &str = r"^what is (?:(?:a|an)\s+)?(.+?)\?$";
+const DEFAULT_QUERY_IS_A_CONFIRM: &str = r"^is (?:(?:a|an)\s+)?(.+?) (?:a|an) (.+?)\?$";
+const DEFAULT_QUERY_CAUSES_CONFIRM: &str = r"^does (?:(?:a|an)\s+)?(.+?) cause (.+?)\?$";
+const DEFAULT_QUERY_HAS_PROPERTY_CONFIRM: &str = r"^does (?:(?:a|an)\s+)?(.+?) have (.+?)\?$";
 const DEFAULT_QUERY_ADD_COMPUTE: &str = r"^what is\s+(-?\d+(?:\.\d+)?)\s*\+\s*(-?\d+(?:\.\d+)?)\?$";
 const DEFAULT_TEACH_IS_A: &str = r"^(?:a|an) (.+?) is (?:a|an) (.+)$";
 const DEFAULT_TEACH_CAUSES: &str = r"^(.+?) causes (.+)$";
 const DEFAULT_TEACH_HAS_PROPERTY: &str = r"^(?:a|an) (.+?) has (.+)$";
+const DEFAULT_DESCRIBE_CLASSIFICATION: &str = "A {subject} is {direct}.";
+const DEFAULT_DESCRIBE_PROPERTIES_INTRO: &str = "It can be";
+const DEFAULT_DESCRIBE_PROPERTIES_OUTRO: &str = ".";
+const DEFAULT_DESCRIBE_PROPERTY_CONNECTOR: &str = "and";
+const DEFAULT_DESCRIBE_SUBTYPES_INTRO: &str = "There are several types, including";
+const DEFAULT_DESCRIBE_SUBTYPES_OUTRO: &str = ".";
+const DEFAULT_DESCRIBE_SUBTYPE_CONNECTOR: &str = "and";
+const DEFAULT_DESCRIBE_OXFORD_COMMA: bool = true;
+const DEFAULT_DESCRIBE_MAX_SUBTYPE_EXAMPLES: usize = 5;
 
 #[derive(Debug, Clone)]
 pub struct TeachFact {
@@ -33,6 +42,66 @@ pub enum QueryIntent {
     ComputeAdd { left: f64, right: f64 },
 }
 
+#[derive(Debug, Clone)]
+pub struct DescribeTemplates {
+    pub classification: String,
+    pub properties_intro: String,
+    pub properties_outro: String,
+    pub property_connector: String,
+    pub subtypes_intro: String,
+    pub subtypes_outro: String,
+    pub subtype_connector: String,
+    pub oxford_comma: bool,
+    pub max_subtype_examples: usize,
+}
+
+impl Default for DescribeTemplates {
+    fn default() -> Self {
+        Self {
+            classification: DEFAULT_DESCRIBE_CLASSIFICATION.to_string(),
+            properties_intro: DEFAULT_DESCRIBE_PROPERTIES_INTRO.to_string(),
+            properties_outro: DEFAULT_DESCRIBE_PROPERTIES_OUTRO.to_string(),
+            property_connector: DEFAULT_DESCRIBE_PROPERTY_CONNECTOR.to_string(),
+            subtypes_intro: DEFAULT_DESCRIBE_SUBTYPES_INTRO.to_string(),
+            subtypes_outro: DEFAULT_DESCRIBE_SUBTYPES_OUTRO.to_string(),
+            subtype_connector: DEFAULT_DESCRIBE_SUBTYPE_CONNECTOR.to_string(),
+            oxford_comma: DEFAULT_DESCRIBE_OXFORD_COMMA,
+            max_subtype_examples: DEFAULT_DESCRIBE_MAX_SUBTYPE_EXAMPLES,
+        }
+    }
+}
+
+impl DescribeTemplates {
+    fn from_overrides(overrides: Option<DescribeTemplateRules>) -> Self {
+        let defaults = Self::default();
+        let Some(overrides) = overrides else {
+            return defaults;
+        };
+
+        Self {
+            classification: overrides.classification.unwrap_or(defaults.classification),
+            properties_intro: overrides
+                .properties_intro
+                .unwrap_or(defaults.properties_intro),
+            properties_outro: overrides
+                .properties_outro
+                .unwrap_or(defaults.properties_outro),
+            property_connector: overrides
+                .property_connector
+                .unwrap_or(defaults.property_connector),
+            subtypes_intro: overrides.subtypes_intro.unwrap_or(defaults.subtypes_intro),
+            subtypes_outro: overrides.subtypes_outro.unwrap_or(defaults.subtypes_outro),
+            subtype_connector: overrides
+                .subtype_connector
+                .unwrap_or(defaults.subtype_connector),
+            oxford_comma: overrides.oxford_comma.unwrap_or(defaults.oxford_comma),
+            max_subtype_examples: overrides
+                .max_subtype_examples
+                .unwrap_or(defaults.max_subtype_examples),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Grammar {
     version: String,
@@ -44,6 +113,7 @@ pub struct Grammar {
     teach_is_a: Regex,
     teach_causes: Regex,
     teach_has_property: Regex,
+    describe_templates: DescribeTemplates,
 }
 
 #[derive(Debug, Deserialize)]
@@ -51,6 +121,25 @@ struct GrammarFile {
     version: Option<String>,
     query: QueryRules,
     teach: TeachRules,
+    templates: Option<TemplateRules>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TemplateRules {
+    describe: Option<DescribeTemplateRules>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DescribeTemplateRules {
+    classification: Option<String>,
+    properties_intro: Option<String>,
+    properties_outro: Option<String>,
+    property_connector: Option<String>,
+    subtypes_intro: Option<String>,
+    subtypes_outro: Option<String>,
+    subtype_connector: Option<String>,
+    oxford_comma: Option<bool>,
+    max_subtype_examples: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,6 +176,7 @@ impl Default for Grammar {
                 .expect("default teach causes regex is valid"),
             teach_has_property: Regex::new(DEFAULT_TEACH_HAS_PROPERTY)
                 .expect("default teach has_property regex is valid"),
+            describe_templates: DescribeTemplates::default(),
         }
     }
 }
@@ -106,11 +196,18 @@ impl Grammar {
             teach_is_a: Regex::new(&grammar_file.teach.is_a)?,
             teach_causes: Regex::new(&grammar_file.teach.causes)?,
             teach_has_property: Regex::new(&grammar_file.teach.has_property)?,
+            describe_templates: DescribeTemplates::from_overrides(
+                grammar_file.templates.and_then(|templates| templates.describe),
+            ),
         })
     }
 
     pub fn version(&self) -> &str {
         &self.version
+    }
+
+    pub fn describe_templates(&self) -> &DescribeTemplates {
+        &self.describe_templates
     }
 
     pub fn parse_query(&self, input: &str) -> Option<QueryIntent> {

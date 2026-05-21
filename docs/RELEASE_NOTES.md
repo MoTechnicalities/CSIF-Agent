@@ -91,3 +91,65 @@ Zero GPU or cloud dependencies
 ```
 
 The age of deterministic, auditable, CPU-native intelligence has begun.
+
+---
+
+## v1.0.1 Ship Hardening Addendum (May 21, 2026)
+
+This addendum captures release-critical hardening completed after the original v1.0.0 notes.
+
+### 1. Modular Lobe Admin Endpoints
+
+Added two admin endpoints for lobe observability and manual control:
+
+- `GET /admin/lobes`: list configured lobe runtime settings and currently applied bundle fingerprints.
+- `POST /admin/lobes/reload`: force a refresh from `CSIF_LOBES_DIR` and return a refresh report.
+
+### 2. Optional Admin Auth Guard
+
+Admin routes are optionally protected by `CSIF_ADMIN_TOKEN`.
+
+- If `CSIF_ADMIN_TOKEN` is unset: admin routes are open (default compatibility mode).
+- If `CSIF_ADMIN_TOKEN` is set: requests must include either:
+  - `X-CSIF-Admin-Token: <token>`
+  - `Authorization: Bearer <token>`
+
+Failed/missing auth returns HTTP `401` with JSON error payload.
+
+### 3. Elaborated Describe Responses
+
+`What is ...?` responses now include more than a direct class when data exists:
+
+- base classification (`A whale is a mammal.`)
+- optional property phrase (`It can be warm-blooded, aquatic, and large.`)
+- optional subtype examples (`There are several types, including blue whale, killer whale, and sperm whale.`)
+
+This improves user-facing quality while preserving deterministic, fact-driven generation.
+
+### 4. Crystallized Response Templates (Data-Driven)
+
+Describe wording moved to grammar configuration (`grammar.toml`) under `[templates.describe]`.
+
+This enables response tone/list-style changes without code edits to Rust formatting logic.
+
+Configurable fields:
+
+- `classification`
+- `properties_intro`, `properties_outro`, `property_connector`
+- `subtypes_intro`, `subtypes_outro`, `subtype_connector`
+- `oxford_comma`
+- `max_subtype_examples`
+
+### 5. Verification Snapshot
+
+Validated on live runs in local runtime:
+
+- compile checks pass: `cargo check -p csif-agent -p agent_demo`
+- admin auth behavior: `200` open mode, `401` unauthenticated token mode, `200` authenticated token mode
+- describe customization behavior: editing template text in grammar changes runtime answer wording as expected
+
+### 6. Compatibility Notes
+
+- Existing query and teach APIs are unchanged.
+- Existing grammar files without `[templates.describe]` remain valid (safe defaults applied).
+- Existing lobe bundles remain compatible.

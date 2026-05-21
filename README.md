@@ -153,6 +153,74 @@ Parsing rules are loaded from `grammar.toml` at startup. You can add new phrasin
 CSIF_GRAMMAR_PATH=./grammar.toml ./target/release/agent_demo
 ```
 
+### Release Documentation Pack
+
+Ship-ready operational and architecture documentation:
+
+- [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md) - release summary and hardening addendum.
+- [docs/SHIP_READY_V1_0_1.md](docs/SHIP_READY_V1_0_1.md) - complete ship checklist, API contracts, and validation commands.
+- [docs/DIAGNOSTICS.md](docs/DIAGNOSTICS.md) - fast triage playbook and failure-mode troubleshooting.
+- [docs/BASE_LOBE_V1_PROCESS.md](docs/BASE_LOBE_V1_PROCESS.md) - full build/qualify history and rationale.
+- [docs/LOBE_BUNDLE_FORMAT.md](docs/LOBE_BUNDLE_FORMAT.md) - modular lobe manifest and operations.
+
+### Modular Lobes (Drop-In)
+
+CSIF-Agent supports modular lobe bundles loaded from a directory at startup and refreshed periodically while running.
+
+```bash
+CSIF_BANK_PATH=./my_brain.rwif \
+CSIF_GRAMMAR_PATH=./grammar.toml \
+CSIF_LOBES_DIR=./lobes \
+CSIF_LOBES_POLL_SECS=5 \
+./target/release/agent_demo
+```
+
+Place bundles under `./lobes` (for example `./lobes/medical/lobe.toml`) and the agent auto-loads compatible bundles.
+
+Admin endpoints:
+
+Set `CSIF_ADMIN_TOKEN` to require a shared secret for admin access. Send it as either `X-CSIF-Admin-Token: <token>` or `Authorization: Bearer <token>`.
+
+```bash
+# List applied/loaded lobes
+curl -s http://localhost:8080/admin/lobes
+
+# List with auth enabled
+curl -s -H "X-CSIF-Admin-Token: $CSIF_ADMIN_TOKEN" http://localhost:8080/admin/lobes
+
+# Trigger manual lobe refresh on demand
+curl -s -X POST http://localhost:8080/admin/lobes/reload
+
+# Trigger manual refresh with auth enabled
+curl -s -X POST -H "Authorization: Bearer $CSIF_ADMIN_TOKEN" http://localhost:8080/admin/lobes/reload
+```
+
+Full format and directory convention: [docs/LOBE_BUNDLE_FORMAT.md](docs/LOBE_BUNDLE_FORMAT.md)
+
+### Crystallized Describe Templates
+
+Describe response wording is configurable in `grammar.toml` under `[templates.describe]`.
+
+```toml
+[templates.describe]
+classification = "A {subject} is {direct}."
+properties_intro = "It can be"
+properties_outro = "."
+property_connector = "and"
+subtypes_intro = "There are several types, including"
+subtypes_outro = "."
+subtype_connector = "and"
+oxford_comma = true
+max_subtype_examples = 5
+```
+
+Supported placeholders:
+
+- `{subject}`: normalized query subject (for example `bird`).
+- `{direct}`: rendered direct classification list (for example `an animal`).
+
+This keeps language style in data (crystallizable), not hardcoded Rust strings.
+
 ```bash
 # Teach the agent
 curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d '{"text":"A whale is a mammal."}'

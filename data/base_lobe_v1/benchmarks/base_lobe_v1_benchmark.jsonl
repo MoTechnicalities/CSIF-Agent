@@ -1,0 +1,600 @@
+{"id": "q-direct-taxo-0001", "type": "query", "query": "What is a abyssinian?", "expected_mode": "contains", "expected": "cat", "category": "taxonomy"}
+{"id": "q-direct-taxo-0002", "type": "query", "query": "What is a action camera?", "expected_mode": "contains", "expected": "video device", "category": "taxonomy"}
+{"id": "q-direct-taxo-0003", "type": "query", "query": "What is a adaptive adapter?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0004", "type": "query", "query": "What is a adaptive array?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0005", "type": "query", "query": "What is a adaptive beacon?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0006", "type": "query", "query": "What is a adaptive bridge?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0007", "type": "query", "query": "What is a adaptive capsule?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0008", "type": "query", "query": "What is a adaptive cartridge?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0009", "type": "query", "query": "What is a adaptive controller?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0010", "type": "query", "query": "What is a adaptive driver?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0011", "type": "query", "query": "What is a adaptive engine?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0012", "type": "query", "query": "What is a adaptive gateway?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0013", "type": "query", "query": "What is a adaptive hub?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0014", "type": "query", "query": "What is a adaptive interface?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0015", "type": "query", "query": "What is a adaptive kit?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0016", "type": "query", "query": "What is a adaptive module?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0017", "type": "query", "query": "What is a adaptive node?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0018", "type": "query", "query": "What is a adaptive panel?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0019", "type": "query", "query": "What is a adaptive probe?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0020", "type": "query", "query": "What is a adaptive relay?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0021", "type": "query", "query": "What is a adaptive sensor?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0022", "type": "query", "query": "What is a adaptive stack?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0023", "type": "query", "query": "What is a adaptive station?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0024", "type": "query", "query": "What is a adaptive switch?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0025", "type": "query", "query": "What is a adaptive terminal?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0026", "type": "query", "query": "What is a adaptive unit?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0027", "type": "query", "query": "What is a adaptive vault?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0028", "type": "query", "query": "What is a adelie penguin?", "expected_mode": "contains", "expected": "penguin", "category": "taxonomy"}
+{"id": "q-direct-taxo-0029", "type": "query", "query": "What is a aero anchor?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0030", "type": "query", "query": "What is a aero board?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0031", "type": "query", "query": "What is a aero cell?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0032", "type": "query", "query": "What is a aero chassis?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0033", "type": "query", "query": "What is a aero cluster?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0034", "type": "query", "query": "What is a aero console?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0035", "type": "query", "query": "What is a aero core?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0036", "type": "query", "query": "What is a aero dock?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0037", "type": "query", "query": "What is a aero fabric?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0038", "type": "query", "query": "What is a aero frame?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0039", "type": "query", "query": "What is a aero grid?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0040", "type": "query", "query": "What is a aero kernel?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0041", "type": "query", "query": "What is a aero matrix?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0042", "type": "query", "query": "What is a aero mesh?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0043", "type": "query", "query": "What is a aero pod?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0044", "type": "query", "query": "What is a aero rack?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0045", "type": "query", "query": "What is a aero rail?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0046", "type": "query", "query": "What is a aero ring?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0047", "type": "query", "query": "What is a aero shield?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0048", "type": "query", "query": "What is a aero tower?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0049", "type": "query", "query": "What is a aether anchor?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0050", "type": "query", "query": "What is a aether array?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0051", "type": "query", "query": "What is a aether bridge?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0052", "type": "query", "query": "What is a aether cell?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0053", "type": "query", "query": "What is a aether channel?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0054", "type": "query", "query": "What is a aether cluster?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0055", "type": "query", "query": "What is a aether console?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0056", "type": "query", "query": "What is a aether fabric?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0057", "type": "query", "query": "What is a aether frame?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0058", "type": "query", "query": "What is a aether grid?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0059", "type": "query", "query": "What is a aether kernel?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0060", "type": "query", "query": "What is a aether matrix?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0061", "type": "query", "query": "What is a aether mesh?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0062", "type": "query", "query": "What is a aether node?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0063", "type": "query", "query": "What is a aether pod?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0064", "type": "query", "query": "What is a aether relay?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0065", "type": "query", "query": "What is a aether router?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0066", "type": "query", "query": "What is a aether stack?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0067", "type": "query", "query": "What is a aether switch?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0068", "type": "query", "query": "What is a aether vector?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0069", "type": "query", "query": "What is a african gray?", "expected_mode": "contains", "expected": "parrot", "category": "taxonomy"}
+{"id": "q-direct-taxo-0070", "type": "query", "query": "What is a african lion?", "expected_mode": "contains", "expected": "big cat", "category": "taxonomy"}
+{"id": "q-direct-taxo-0071", "type": "query", "query": "What is a african violet?", "expected_mode": "contains", "expected": "flower", "category": "taxonomy"}
+{"id": "q-direct-taxo-0072", "type": "query", "query": "What is a agile adapter?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0073", "type": "query", "query": "What is a agile array?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0074", "type": "query", "query": "What is a agile beacon?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0075", "type": "query", "query": "What is a agile bridge?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0076", "type": "query", "query": "What is a agile capsule?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0077", "type": "query", "query": "What is a agile cartridge?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0078", "type": "query", "query": "What is a agile controller?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0079", "type": "query", "query": "What is a agile driver?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0080", "type": "query", "query": "What is a agile engine?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0081", "type": "query", "query": "What is a agile gateway?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0082", "type": "query", "query": "What is a agile hub?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0083", "type": "query", "query": "What is a agile interface?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0084", "type": "query", "query": "What is a agile kit?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0085", "type": "query", "query": "What is a agile module?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0086", "type": "query", "query": "What is a agile node?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0087", "type": "query", "query": "What is a agile panel?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0088", "type": "query", "query": "What is a agile probe?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0089", "type": "query", "query": "What is a agile relay?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-taxo-0090", "type": "query", "query": "What is a agile sensor?", "expected_mode": "contains", "expected": "synthetic artifact", "category": "taxonomy"}
+{"id": "q-direct-prop-0001", "type": "query", "query": "Does a adaptive adapter have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0002", "type": "query", "query": "Does a adaptive adapter have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0003", "type": "query", "query": "Does a adaptive array have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0004", "type": "query", "query": "Does a adaptive array have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0005", "type": "query", "query": "Does a adaptive beacon have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0006", "type": "query", "query": "Does a adaptive beacon have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0007", "type": "query", "query": "Does a adaptive bridge have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0008", "type": "query", "query": "Does a adaptive bridge have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0009", "type": "query", "query": "Does a adaptive controller have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0010", "type": "query", "query": "Does a adaptive controller have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0011", "type": "query", "query": "Does a adaptive engine have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0012", "type": "query", "query": "Does a adaptive engine have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0013", "type": "query", "query": "Does a adaptive gateway have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0014", "type": "query", "query": "Does a adaptive gateway have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0015", "type": "query", "query": "Does a adaptive hub have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0016", "type": "query", "query": "Does a adaptive hub have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0017", "type": "query", "query": "Does a adaptive interface have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0018", "type": "query", "query": "Does a adaptive interface have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0019", "type": "query", "query": "Does a adaptive module have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0020", "type": "query", "query": "Does a adaptive module have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0021", "type": "query", "query": "Does a adaptive node have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0022", "type": "query", "query": "Does a adaptive node have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0023", "type": "query", "query": "Does a adaptive relay have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0024", "type": "query", "query": "Does a adaptive relay have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0025", "type": "query", "query": "Does a adaptive sensor have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0026", "type": "query", "query": "Does a adaptive sensor have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0027", "type": "query", "query": "Does a adaptive switch have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0028", "type": "query", "query": "Does a adaptive switch have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0029", "type": "query", "query": "Does a adaptive terminal have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0030", "type": "query", "query": "Does a adaptive terminal have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0031", "type": "query", "query": "Does a aero anchor have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0032", "type": "query", "query": "Does a aero anchor have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0033", "type": "query", "query": "Does a aero board have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0034", "type": "query", "query": "Does a aero board have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0035", "type": "query", "query": "Does a aero cell have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0036", "type": "query", "query": "Does a aero cell have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0037", "type": "query", "query": "Does a aero cluster have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0038", "type": "query", "query": "Does a aero cluster have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0039", "type": "query", "query": "Does a aero console have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0040", "type": "query", "query": "Does a aero console have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0041", "type": "query", "query": "Does a aero fabric have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0042", "type": "query", "query": "Does a aero fabric have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0043", "type": "query", "query": "Does a aero frame have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0044", "type": "query", "query": "Does a aero frame have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0045", "type": "query", "query": "Does a aero matrix have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0046", "type": "query", "query": "Does a aero matrix have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0047", "type": "query", "query": "Does a aero mesh have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0048", "type": "query", "query": "Does a aero mesh have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0049", "type": "query", "query": "Does a aero tower have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0050", "type": "query", "query": "Does a aero tower have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0051", "type": "query", "query": "Does a aether anchor have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0052", "type": "query", "query": "Does a aether anchor have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0053", "type": "query", "query": "Does a aether array have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0054", "type": "query", "query": "Does a aether array have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0055", "type": "query", "query": "Does a aether bridge have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0056", "type": "query", "query": "Does a aether bridge have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0057", "type": "query", "query": "Does a aether channel have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0058", "type": "query", "query": "Does a aether channel have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0059", "type": "query", "query": "Does a aether cluster have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0060", "type": "query", "query": "Does a aether cluster have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0061", "type": "query", "query": "Does a aether fabric have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0062", "type": "query", "query": "Does a aether fabric have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0063", "type": "query", "query": "Does a aether grid have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0064", "type": "query", "query": "Does a aether grid have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0065", "type": "query", "query": "Does a aether matrix have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0066", "type": "query", "query": "Does a aether matrix have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0067", "type": "query", "query": "Does a aether mesh have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0068", "type": "query", "query": "Does a aether mesh have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0069", "type": "query", "query": "Does a aether switch have robust?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0070", "type": "query", "query": "Does a aether switch have verifiable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0071", "type": "query", "query": "Does a agile adapter have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0072", "type": "query", "query": "Does a agile adapter have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0073", "type": "query", "query": "Does a agile array have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0074", "type": "query", "query": "Does a agile array have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0075", "type": "query", "query": "Does a agile beacon have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0076", "type": "query", "query": "Does a agile beacon have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0077", "type": "query", "query": "Does a agile bridge have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0078", "type": "query", "query": "Does a agile bridge have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0079", "type": "query", "query": "Does a agile controller have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0080", "type": "query", "query": "Does a agile controller have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0081", "type": "query", "query": "Does a agile engine have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0082", "type": "query", "query": "Does a agile engine have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0083", "type": "query", "query": "Does a agile gateway have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0084", "type": "query", "query": "Does a agile gateway have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0085", "type": "query", "query": "Does a agile hub have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0086", "type": "query", "query": "Does a agile hub have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0087", "type": "query", "query": "Does a agile interface have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0088", "type": "query", "query": "Does a agile interface have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0089", "type": "query", "query": "Does a agile module have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-direct-prop-0090", "type": "query", "query": "Does a agile module have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-trans-0001", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0002", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0003", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0004", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0005", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0006", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0007", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0008", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0009", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0010", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0011", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0012", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0013", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0014", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0015", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0016", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0017", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0018", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0019", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0020", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0021", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0022", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0023", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0024", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0025", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0026", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0027", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0028", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0029", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0030", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0031", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0032", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0033", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0034", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0035", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0036", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0037", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0038", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0039", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0040", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0041", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0042", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0043", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0044", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0045", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0046", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0047", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0048", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0049", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0050", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0051", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0052", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0053", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0054", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0055", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0056", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0057", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0058", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0059", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0060", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0061", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0062", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0063", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0064", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0065", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0066", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0067", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0068", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0069", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0070", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0071", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0072", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0073", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0074", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0075", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0076", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0077", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0078", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0079", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0080", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0081", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0082", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0083", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0084", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0085", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0086", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0087", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0088", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0089", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0090", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0091", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0092", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0093", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0094", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0095", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0096", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0097", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0098", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0099", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0100", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0101", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0102", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0103", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0104", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0105", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0106", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0107", "type": "query", "query": "Is a shark a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0108", "type": "query", "query": "Is a salmon a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0109", "type": "query", "query": "Is a laptop a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0110", "type": "query", "query": "Is a server a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0111", "type": "query", "query": "Is a car a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0112", "type": "query", "query": "Is a bicycle a machine?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0113", "type": "query", "query": "Is a whale a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0114", "type": "query", "query": "Is a dog a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0115", "type": "query", "query": "Is a cat a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0116", "type": "query", "query": "Is a lion a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0117", "type": "query", "query": "Is a tiger a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0118", "type": "query", "query": "Is a robin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0119", "type": "query", "query": "Is a eagle a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-trans-0120", "type": "query", "query": "Is a penguin a animal?", "expected_mode": "contains", "expected": "YES", "category": "transitive"}
+{"id": "q-causal-0001", "type": "query", "query": "Does access consistency cause access confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0002", "type": "query", "query": "Does access enforcement cause access consistency?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0003", "type": "query", "query": "Does access policy gap cause access policy update?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0004", "type": "query", "query": "Does access policy update cause access enforcement?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0005", "type": "query", "query": "Does accidents cause injuries?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0006", "type": "query", "query": "Does activation action cause activation validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0007", "type": "query", "query": "Does activation alert cause activation triage?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0008", "type": "query", "query": "Does activation analysis cause activation action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0009", "type": "query", "query": "Does activation fix cause activation validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0010", "type": "query", "query": "Does activation regression cause activation alert?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0011", "type": "query", "query": "Does activation signal cause activation analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0012", "type": "query", "query": "Does activation triage cause activation fix?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0013", "type": "query", "query": "Does activation validation cause activation confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0014", "type": "query", "query": "Does adapter2 action cause adapter2 validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0015", "type": "query", "query": "Does adapter2 analysis cause adapter2 action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0016", "type": "query", "query": "Does adapter2 signal cause adapter2 analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0017", "type": "query", "query": "Does adapter2 validation cause adapter2 confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0018", "type": "query", "query": "Does adoption action cause adoption validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0019", "type": "query", "query": "Does adoption alert cause adoption triage?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0020", "type": "query", "query": "Does adoption analysis cause adoption action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0021", "type": "query", "query": "Does adoption fix cause adoption validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0022", "type": "query", "query": "Does adoption regression cause adoption alert?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0023", "type": "query", "query": "Does adoption signal cause adoption analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0024", "type": "query", "query": "Does adoption triage cause adoption fix?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0025", "type": "query", "query": "Does adoption validation cause adoption confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0026", "type": "query", "query": "Does aggregator2 action cause aggregator2 validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0027", "type": "query", "query": "Does aggregator2 analysis cause aggregator2 action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0028", "type": "query", "query": "Does aggregator2 signal cause aggregator2 analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0029", "type": "query", "query": "Does aggregator2 validation cause aggregator2 confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0030", "type": "query", "query": "Does alcohol cause impairment?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0031", "type": "query", "query": "Does alerting action cause alerting validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0032", "type": "query", "query": "Does alerting analysis cause alerting action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0033", "type": "query", "query": "Does alerting signal cause alerting analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0034", "type": "query", "query": "Does alerting validation cause alerting confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0035", "type": "query", "query": "Does allocator action cause allocator validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0036", "type": "query", "query": "Does allocator analysis cause allocator action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0037", "type": "query", "query": "Does allocator signal cause allocator analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0038", "type": "query", "query": "Does allocator validation cause allocator confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0039", "type": "query", "query": "Does analyzer2 action cause analyzer2 validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0040", "type": "query", "query": "Does analyzer2 analysis cause analyzer2 action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0041", "type": "query", "query": "Does analyzer2 signal cause analyzer2 analysis?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0042", "type": "query", "query": "Does analyzer2 validation cause analyzer2 confidence?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0043", "type": "query", "query": "Does api action cause api validation?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0044", "type": "query", "query": "Does api analysis cause api action?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-causal-0045", "type": "query", "query": "Does api assurance check cause api assurance pass?", "expected_mode": "contains", "expected": "YES", "category": "causality"}
+{"id": "q-prop-mix-0001", "type": "query", "query": "Does a adaptive adapter have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0002", "type": "query", "query": "Does a adaptive adapter have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0003", "type": "query", "query": "Does a adaptive array have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0004", "type": "query", "query": "Does a adaptive array have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0005", "type": "query", "query": "Does a adaptive beacon have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0006", "type": "query", "query": "Does a adaptive beacon have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0007", "type": "query", "query": "Does a adaptive bridge have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0008", "type": "query", "query": "Does a adaptive bridge have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0009", "type": "query", "query": "Does a adaptive controller have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0010", "type": "query", "query": "Does a adaptive controller have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0011", "type": "query", "query": "Does a adaptive engine have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0012", "type": "query", "query": "Does a adaptive engine have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0013", "type": "query", "query": "Does a adaptive gateway have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0014", "type": "query", "query": "Does a adaptive gateway have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0015", "type": "query", "query": "Does a adaptive hub have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0016", "type": "query", "query": "Does a adaptive hub have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0017", "type": "query", "query": "Does a adaptive interface have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0018", "type": "query", "query": "Does a adaptive interface have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0019", "type": "query", "query": "Does a adaptive module have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0020", "type": "query", "query": "Does a adaptive module have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0021", "type": "query", "query": "Does a adaptive node have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0022", "type": "query", "query": "Does a adaptive node have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0023", "type": "query", "query": "Does a adaptive relay have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0024", "type": "query", "query": "Does a adaptive relay have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0025", "type": "query", "query": "Does a adaptive sensor have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0026", "type": "query", "query": "Does a adaptive sensor have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0027", "type": "query", "query": "Does a adaptive switch have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0028", "type": "query", "query": "Does a adaptive switch have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0029", "type": "query", "query": "Does a adaptive terminal have configurable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0030", "type": "query", "query": "Does a adaptive terminal have synthetic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0031", "type": "query", "query": "Does a aero anchor have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0032", "type": "query", "query": "Does a aero anchor have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0033", "type": "query", "query": "Does a aero board have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0034", "type": "query", "query": "Does a aero board have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0035", "type": "query", "query": "Does a aero cell have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0036", "type": "query", "query": "Does a aero cell have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0037", "type": "query", "query": "Does a aero cluster have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0038", "type": "query", "query": "Does a aero cluster have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0039", "type": "query", "query": "Does a aero console have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0040", "type": "query", "query": "Does a aero console have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0041", "type": "query", "query": "Does a aero fabric have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0042", "type": "query", "query": "Does a aero fabric have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0043", "type": "query", "query": "Does a aero frame have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0044", "type": "query", "query": "Does a aero frame have serviceable?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-prop-mix-0045", "type": "query", "query": "Does a aero matrix have deterministic?", "expected_mode": "contains", "expected": "YES", "category": "properties"}
+{"id": "q-arith-0001", "type": "query", "query": "What is 99999999 + 1?", "expected_mode": "contains", "expected": "100000000", "category": "arithmetic"}
+{"id": "q-arith-0002", "type": "query", "query": "What is 99999999 + 2?", "expected_mode": "contains", "expected": "100000001", "category": "arithmetic"}
+{"id": "q-arith-0003", "type": "query", "query": "What is 99999999 + 3?", "expected_mode": "contains", "expected": "100000002", "category": "arithmetic"}
+{"id": "q-arith-0004", "type": "query", "query": "What is 99999999 + 9?", "expected_mode": "contains", "expected": "100000008", "category": "arithmetic"}
+{"id": "q-arith-0005", "type": "query", "query": "What is 99999999 + 11?", "expected_mode": "contains", "expected": "100000010", "category": "arithmetic"}
+{"id": "q-arith-0006", "type": "query", "query": "What is 99999999 + 19?", "expected_mode": "contains", "expected": "100000018", "category": "arithmetic"}
+{"id": "q-arith-0007", "type": "query", "query": "What is 99999999 + 99?", "expected_mode": "contains", "expected": "100000098", "category": "arithmetic"}
+{"id": "q-arith-0008", "type": "query", "query": "What is 99999999 + 101?", "expected_mode": "contains", "expected": "100000100", "category": "arithmetic"}
+{"id": "q-arith-0009", "type": "query", "query": "What is 999999999 + 1?", "expected_mode": "contains", "expected": "1000000000", "category": "arithmetic"}
+{"id": "q-arith-0010", "type": "query", "query": "What is 999999999 + 2?", "expected_mode": "contains", "expected": "1000000001", "category": "arithmetic"}
+{"id": "q-arith-0011", "type": "query", "query": "What is 999999999 + 3?", "expected_mode": "contains", "expected": "1000000002", "category": "arithmetic"}
+{"id": "q-arith-0012", "type": "query", "query": "What is 999999999 + 9?", "expected_mode": "contains", "expected": "1000000008", "category": "arithmetic"}
+{"id": "q-arith-0013", "type": "query", "query": "What is 999999999 + 11?", "expected_mode": "contains", "expected": "1000000010", "category": "arithmetic"}
+{"id": "q-arith-0014", "type": "query", "query": "What is 999999999 + 19?", "expected_mode": "contains", "expected": "1000000018", "category": "arithmetic"}
+{"id": "q-arith-0015", "type": "query", "query": "What is 999999999 + 99?", "expected_mode": "contains", "expected": "1000000098", "category": "arithmetic"}
+{"id": "q-arith-0016", "type": "query", "query": "What is 999999999 + 101?", "expected_mode": "contains", "expected": "1000000100", "category": "arithmetic"}
+{"id": "q-arith-0017", "type": "query", "query": "What is 9999999999 + 1?", "expected_mode": "contains", "expected": "10000000000", "category": "arithmetic"}
+{"id": "q-arith-0018", "type": "query", "query": "What is 9999999999 + 2?", "expected_mode": "contains", "expected": "10000000001", "category": "arithmetic"}
+{"id": "q-arith-0019", "type": "query", "query": "What is 9999999999 + 3?", "expected_mode": "contains", "expected": "10000000002", "category": "arithmetic"}
+{"id": "q-arith-0020", "type": "query", "query": "What is 9999999999 + 9?", "expected_mode": "contains", "expected": "10000000008", "category": "arithmetic"}
+{"id": "q-arith-0021", "type": "query", "query": "What is 9999999999 + 11?", "expected_mode": "contains", "expected": "10000000010", "category": "arithmetic"}
+{"id": "q-arith-0022", "type": "query", "query": "What is 9999999999 + 19?", "expected_mode": "contains", "expected": "10000000018", "category": "arithmetic"}
+{"id": "q-arith-0023", "type": "query", "query": "What is 9999999999 + 99?", "expected_mode": "contains", "expected": "10000000098", "category": "arithmetic"}
+{"id": "q-arith-0024", "type": "query", "query": "What is 9999999999 + 101?", "expected_mode": "contains", "expected": "10000000100", "category": "arithmetic"}
+{"id": "q-arith-0025", "type": "query", "query": "What is 99999999999 + 1?", "expected_mode": "contains", "expected": "100000000000", "category": "arithmetic"}
+{"id": "q-arith-0026", "type": "query", "query": "What is 99999999999 + 2?", "expected_mode": "contains", "expected": "100000000001", "category": "arithmetic"}
+{"id": "q-arith-0027", "type": "query", "query": "What is 99999999999 + 3?", "expected_mode": "contains", "expected": "100000000002", "category": "arithmetic"}
+{"id": "q-arith-0028", "type": "query", "query": "What is 99999999999 + 9?", "expected_mode": "contains", "expected": "100000000008", "category": "arithmetic"}
+{"id": "q-arith-0029", "type": "query", "query": "What is 99999999999 + 11?", "expected_mode": "contains", "expected": "100000000010", "category": "arithmetic"}
+{"id": "q-arith-0030", "type": "query", "query": "What is 99999999999 + 19?", "expected_mode": "contains", "expected": "100000000018", "category": "arithmetic"}
+{"id": "q-arith-0031", "type": "query", "query": "What is 99999999999 + 99?", "expected_mode": "contains", "expected": "100000000098", "category": "arithmetic"}
+{"id": "q-arith-0032", "type": "query", "query": "What is 99999999999 + 101?", "expected_mode": "contains", "expected": "100000000100", "category": "arithmetic"}
+{"id": "q-arith-0033", "type": "query", "query": "What is 999999999999 + 1?", "expected_mode": "contains", "expected": "1000000000000", "category": "arithmetic"}
+{"id": "q-arith-0034", "type": "query", "query": "What is 999999999999 + 2?", "expected_mode": "contains", "expected": "1000000000001", "category": "arithmetic"}
+{"id": "q-arith-0035", "type": "query", "query": "What is 999999999999 + 3?", "expected_mode": "contains", "expected": "1000000000002", "category": "arithmetic"}
+{"id": "q-arith-0036", "type": "query", "query": "What is 999999999999 + 9?", "expected_mode": "contains", "expected": "1000000000008", "category": "arithmetic"}
+{"id": "q-arith-0037", "type": "query", "query": "What is 999999999999 + 11?", "expected_mode": "contains", "expected": "1000000000010", "category": "arithmetic"}
+{"id": "q-arith-0038", "type": "query", "query": "What is 999999999999 + 19?", "expected_mode": "contains", "expected": "1000000000018", "category": "arithmetic"}
+{"id": "q-arith-0039", "type": "query", "query": "What is 999999999999 + 99?", "expected_mode": "contains", "expected": "1000000000098", "category": "arithmetic"}
+{"id": "q-arith-0040", "type": "query", "query": "What is 999999999999 + 101?", "expected_mode": "contains", "expected": "1000000000100", "category": "arithmetic"}
+{"id": "q-arith-0041", "type": "query", "query": "What is -10000 + 9985?", "expected_mode": "contains", "expected": "-15", "category": "arithmetic"}
+{"id": "q-arith-0042", "type": "query", "query": "What is -10137 + 10125?", "expected_mode": "contains", "expected": "-12", "category": "arithmetic"}
+{"id": "q-arith-0043", "type": "query", "query": "What is -10274 + 10265?", "expected_mode": "contains", "expected": "-9", "category": "arithmetic"}
+{"id": "q-arith-0044", "type": "query", "query": "What is -10411 + 10405?", "expected_mode": "contains", "expected": "-6", "category": "arithmetic"}
+{"id": "q-arith-0045", "type": "query", "query": "What is -10548 + 10545?", "expected_mode": "contains", "expected": "-3", "category": "arithmetic"}
+{"id": "q-arith-0046", "type": "query", "query": "What is -10685 + 10685?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0047", "type": "query", "query": "What is -10822 + 10825?", "expected_mode": "contains", "expected": "3", "category": "arithmetic"}
+{"id": "q-arith-0048", "type": "query", "query": "What is -10959 + 10965?", "expected_mode": "contains", "expected": "6", "category": "arithmetic"}
+{"id": "q-arith-0049", "type": "query", "query": "What is -11096 + 11105?", "expected_mode": "contains", "expected": "9", "category": "arithmetic"}
+{"id": "q-arith-0050", "type": "query", "query": "What is -11233 + 11245?", "expected_mode": "contains", "expected": "12", "category": "arithmetic"}
+{"id": "q-arith-0051", "type": "query", "query": "What is -11370 + 11385?", "expected_mode": "contains", "expected": "15", "category": "arithmetic"}
+{"id": "q-arith-0052", "type": "query", "query": "What is -11507 + 11492?", "expected_mode": "contains", "expected": "-15", "category": "arithmetic"}
+{"id": "q-arith-0053", "type": "query", "query": "What is -11644 + 11632?", "expected_mode": "contains", "expected": "-12", "category": "arithmetic"}
+{"id": "q-arith-0054", "type": "query", "query": "What is -11781 + 11772?", "expected_mode": "contains", "expected": "-9", "category": "arithmetic"}
+{"id": "q-arith-0055", "type": "query", "query": "What is -11918 + 11912?", "expected_mode": "contains", "expected": "-6", "category": "arithmetic"}
+{"id": "q-arith-0056", "type": "query", "query": "What is -12055 + 12052?", "expected_mode": "contains", "expected": "-3", "category": "arithmetic"}
+{"id": "q-arith-0057", "type": "query", "query": "What is -12192 + 12192?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0058", "type": "query", "query": "What is -12329 + 12332?", "expected_mode": "contains", "expected": "3", "category": "arithmetic"}
+{"id": "q-arith-0059", "type": "query", "query": "What is -12466 + 12472?", "expected_mode": "contains", "expected": "6", "category": "arithmetic"}
+{"id": "q-arith-0060", "type": "query", "query": "What is -12603 + 12612?", "expected_mode": "contains", "expected": "9", "category": "arithmetic"}
+{"id": "q-arith-0061", "type": "query", "query": "What is -12740 + 12752?", "expected_mode": "contains", "expected": "12", "category": "arithmetic"}
+{"id": "q-arith-0062", "type": "query", "query": "What is -12877 + 12892?", "expected_mode": "contains", "expected": "15", "category": "arithmetic"}
+{"id": "q-arith-0063", "type": "query", "query": "What is -13014 + 12999?", "expected_mode": "contains", "expected": "-15", "category": "arithmetic"}
+{"id": "q-arith-0064", "type": "query", "query": "What is -13151 + 13139?", "expected_mode": "contains", "expected": "-12", "category": "arithmetic"}
+{"id": "q-arith-0065", "type": "query", "query": "What is -13288 + 13279?", "expected_mode": "contains", "expected": "-9", "category": "arithmetic"}
+{"id": "q-arith-0066", "type": "query", "query": "What is -13425 + 13419?", "expected_mode": "contains", "expected": "-6", "category": "arithmetic"}
+{"id": "q-arith-0067", "type": "query", "query": "What is -13562 + 13559?", "expected_mode": "contains", "expected": "-3", "category": "arithmetic"}
+{"id": "q-arith-0068", "type": "query", "query": "What is -13699 + 13699?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0069", "type": "query", "query": "What is -13836 + 13839?", "expected_mode": "contains", "expected": "3", "category": "arithmetic"}
+{"id": "q-arith-0070", "type": "query", "query": "What is -13973 + 13979?", "expected_mode": "contains", "expected": "6", "category": "arithmetic"}
+{"id": "q-arith-0071", "type": "query", "query": "What is -14110 + 14119?", "expected_mode": "contains", "expected": "9", "category": "arithmetic"}
+{"id": "q-arith-0072", "type": "query", "query": "What is -14247 + 14259?", "expected_mode": "contains", "expected": "12", "category": "arithmetic"}
+{"id": "q-arith-0073", "type": "query", "query": "What is -14384 + 14399?", "expected_mode": "contains", "expected": "15", "category": "arithmetic"}
+{"id": "q-arith-0074", "type": "query", "query": "What is -14521 + 14506?", "expected_mode": "contains", "expected": "-15", "category": "arithmetic"}
+{"id": "q-arith-0075", "type": "query", "query": "What is -14658 + 14646?", "expected_mode": "contains", "expected": "-12", "category": "arithmetic"}
+{"id": "q-arith-0076", "type": "query", "query": "What is -14795 + 14786?", "expected_mode": "contains", "expected": "-9", "category": "arithmetic"}
+{"id": "q-arith-0077", "type": "query", "query": "What is -14932 + 14926?", "expected_mode": "contains", "expected": "-6", "category": "arithmetic"}
+{"id": "q-arith-0078", "type": "query", "query": "What is -15069 + 15066?", "expected_mode": "contains", "expected": "-3", "category": "arithmetic"}
+{"id": "q-arith-0079", "type": "query", "query": "What is -15206 + 15206?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0080", "type": "query", "query": "What is -15343 + 15346?", "expected_mode": "contains", "expected": "3", "category": "arithmetic"}
+{"id": "q-arith-0081", "type": "query", "query": "What is -5000 + 4999?", "expected_mode": "contains", "expected": "-1", "category": "arithmetic"}
+{"id": "q-arith-0082", "type": "query", "query": "What is -5024.25 + 5023.5?", "expected_mode": "contains", "expected": "-0.75", "category": "arithmetic"}
+{"id": "q-arith-0083", "type": "query", "query": "What is -5048.5 + 5048?", "expected_mode": "contains", "expected": "-0.5", "category": "arithmetic"}
+{"id": "q-arith-0084", "type": "query", "query": "What is -5072.75 + 5072.5?", "expected_mode": "contains", "expected": "-0.25", "category": "arithmetic"}
+{"id": "q-arith-0085", "type": "query", "query": "What is -5097 + 5097?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0086", "type": "query", "query": "What is -5121.25 + 5121.5?", "expected_mode": "contains", "expected": "0.25", "category": "arithmetic"}
+{"id": "q-arith-0087", "type": "query", "query": "What is -5145.5 + 5146?", "expected_mode": "contains", "expected": "0.5", "category": "arithmetic"}
+{"id": "q-arith-0088", "type": "query", "query": "What is -5169.75 + 5170.5?", "expected_mode": "contains", "expected": "0.75", "category": "arithmetic"}
+{"id": "q-arith-0089", "type": "query", "query": "What is -5194 + 5195?", "expected_mode": "contains", "expected": "1", "category": "arithmetic"}
+{"id": "q-arith-0090", "type": "query", "query": "What is -5218.25 + 5217.25?", "expected_mode": "contains", "expected": "-1", "category": "arithmetic"}
+{"id": "q-arith-0091", "type": "query", "query": "What is -5242.5 + 5241.75?", "expected_mode": "contains", "expected": "-0.75", "category": "arithmetic"}
+{"id": "q-arith-0092", "type": "query", "query": "What is -5266.75 + 5266.25?", "expected_mode": "contains", "expected": "-0.5", "category": "arithmetic"}
+{"id": "q-arith-0093", "type": "query", "query": "What is -5291 + 5290.75?", "expected_mode": "contains", "expected": "-0.25", "category": "arithmetic"}
+{"id": "q-arith-0094", "type": "query", "query": "What is -5315.25 + 5315.25?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0095", "type": "query", "query": "What is -5339.5 + 5339.75?", "expected_mode": "contains", "expected": "0.25", "category": "arithmetic"}
+{"id": "q-arith-0096", "type": "query", "query": "What is -5363.75 + 5364.25?", "expected_mode": "contains", "expected": "0.5", "category": "arithmetic"}
+{"id": "q-arith-0097", "type": "query", "query": "What is -5388 + 5388.75?", "expected_mode": "contains", "expected": "0.75", "category": "arithmetic"}
+{"id": "q-arith-0098", "type": "query", "query": "What is -5412.25 + 5413.25?", "expected_mode": "contains", "expected": "1", "category": "arithmetic"}
+{"id": "q-arith-0099", "type": "query", "query": "What is -5436.5 + 5435.5?", "expected_mode": "contains", "expected": "-1", "category": "arithmetic"}
+{"id": "q-arith-0100", "type": "query", "query": "What is -5460.75 + 5460?", "expected_mode": "contains", "expected": "-0.75", "category": "arithmetic"}
+{"id": "q-arith-0101", "type": "query", "query": "What is -5485 + 5484.5?", "expected_mode": "contains", "expected": "-0.5", "category": "arithmetic"}
+{"id": "q-arith-0102", "type": "query", "query": "What is -5509.25 + 5509?", "expected_mode": "contains", "expected": "-0.25", "category": "arithmetic"}
+{"id": "q-arith-0103", "type": "query", "query": "What is -5533.5 + 5533.5?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0104", "type": "query", "query": "What is -5557.75 + 5558?", "expected_mode": "contains", "expected": "0.25", "category": "arithmetic"}
+{"id": "q-arith-0105", "type": "query", "query": "What is -5582 + 5582.5?", "expected_mode": "contains", "expected": "0.5", "category": "arithmetic"}
+{"id": "q-arith-0106", "type": "query", "query": "What is -5606.25 + 5607?", "expected_mode": "contains", "expected": "0.75", "category": "arithmetic"}
+{"id": "q-arith-0107", "type": "query", "query": "What is -5630.5 + 5631.5?", "expected_mode": "contains", "expected": "1", "category": "arithmetic"}
+{"id": "q-arith-0108", "type": "query", "query": "What is -5654.75 + 5653.75?", "expected_mode": "contains", "expected": "-1", "category": "arithmetic"}
+{"id": "q-arith-0109", "type": "query", "query": "What is -5679 + 5678.25?", "expected_mode": "contains", "expected": "-0.75", "category": "arithmetic"}
+{"id": "q-arith-0110", "type": "query", "query": "What is -5703.25 + 5702.75?", "expected_mode": "contains", "expected": "-0.5", "category": "arithmetic"}
+{"id": "q-arith-0111", "type": "query", "query": "What is -5727.5 + 5727.25?", "expected_mode": "contains", "expected": "-0.25", "category": "arithmetic"}
+{"id": "q-arith-0112", "type": "query", "query": "What is -5751.75 + 5751.75?", "expected_mode": "contains", "expected": "0", "category": "arithmetic"}
+{"id": "q-arith-0113", "type": "query", "query": "What is -5776 + 5776.25?", "expected_mode": "contains", "expected": "0.25", "category": "arithmetic"}
+{"id": "q-arith-0114", "type": "query", "query": "What is -5800.25 + 5800.75?", "expected_mode": "contains", "expected": "0.5", "category": "arithmetic"}
+{"id": "q-arith-0115", "type": "query", "query": "What is -5824.5 + 5825.25?", "expected_mode": "contains", "expected": "0.75", "category": "arithmetic"}
+{"id": "q-arith-0116", "type": "query", "query": "What is -5848.75 + 5849.75?", "expected_mode": "contains", "expected": "1", "category": "arithmetic"}
+{"id": "q-arith-0117", "type": "query", "query": "What is -5873 + 5872?", "expected_mode": "contains", "expected": "-1", "category": "arithmetic"}
+{"id": "q-arith-0118", "type": "query", "query": "What is -5897.25 + 5896.5?", "expected_mode": "contains", "expected": "-0.75", "category": "arithmetic"}
+{"id": "q-arith-0119", "type": "query", "query": "What is -5921.5 + 5921?", "expected_mode": "contains", "expected": "-0.5", "category": "arithmetic"}
+{"id": "q-arith-0120", "type": "query", "query": "What is -5945.75 + 5945.5?", "expected_mode": "contains", "expected": "-0.25", "category": "arithmetic"}
+{"id": "t-contr-0001", "type": "teach", "teach": "a whale is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0002", "type": "teach", "teach": "a dog is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0003", "type": "teach", "teach": "a cat is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0004", "type": "teach", "teach": "a lion is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0005", "type": "teach", "teach": "a tiger is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0006", "type": "teach", "teach": "a eagle is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0007", "type": "teach", "teach": "a robin is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0008", "type": "teach", "teach": "a shark is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0009", "type": "teach", "teach": "a salmon is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0010", "type": "teach", "teach": "a whale is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0011", "type": "teach", "teach": "a dog is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0012", "type": "teach", "teach": "a cat is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0013", "type": "teach", "teach": "a lion is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0014", "type": "teach", "teach": "a tiger is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0015", "type": "teach", "teach": "a eagle is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0016", "type": "teach", "teach": "a robin is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0017", "type": "teach", "teach": "a shark is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0018", "type": "teach", "teach": "a salmon is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0019", "type": "teach", "teach": "a whale is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0020", "type": "teach", "teach": "a dog is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0021", "type": "teach", "teach": "a cat is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0022", "type": "teach", "teach": "a lion is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0023", "type": "teach", "teach": "a tiger is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0024", "type": "teach", "teach": "a eagle is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0025", "type": "teach", "teach": "a robin is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0026", "type": "teach", "teach": "a shark is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0027", "type": "teach", "teach": "a salmon is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0028", "type": "teach", "teach": "a whale is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0029", "type": "teach", "teach": "a dog is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0030", "type": "teach", "teach": "a cat is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0031", "type": "teach", "teach": "a lion is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0032", "type": "teach", "teach": "a tiger is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0033", "type": "teach", "teach": "a eagle is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0034", "type": "teach", "teach": "a robin is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0035", "type": "teach", "teach": "a shark is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0036", "type": "teach", "teach": "a salmon is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0037", "type": "teach", "teach": "a whale is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0038", "type": "teach", "teach": "a dog is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0039", "type": "teach", "teach": "a cat is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0040", "type": "teach", "teach": "a lion is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0041", "type": "teach", "teach": "a tiger is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0042", "type": "teach", "teach": "a eagle is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0043", "type": "teach", "teach": "a robin is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0044", "type": "teach", "teach": "a shark is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "t-contr-0045", "type": "teach", "teach": "a salmon is a mineral", "expected_mode": "contains_any", "expected_any": ["CONTRADICTION", "already know"], "category": "contradiction"}
+{"id": "q-honest-0001", "type": "query", "query": "What is a unknown_entity_001?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0002", "type": "query", "query": "What is a unknown_entity_002?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0003", "type": "query", "query": "What is a unknown_entity_003?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0004", "type": "query", "query": "What is a unknown_entity_004?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0005", "type": "query", "query": "What is a unknown_entity_005?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0006", "type": "query", "query": "What is a unknown_entity_006?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0007", "type": "query", "query": "What is a unknown_entity_007?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0008", "type": "query", "query": "What is a unknown_entity_008?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0009", "type": "query", "query": "What is a unknown_entity_009?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0010", "type": "query", "query": "What is a unknown_entity_010?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0011", "type": "query", "query": "What is a unknown_entity_011?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0012", "type": "query", "query": "What is a unknown_entity_012?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0013", "type": "query", "query": "What is a unknown_entity_013?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0014", "type": "query", "query": "What is a unknown_entity_014?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0015", "type": "query", "query": "What is a unknown_entity_015?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0016", "type": "query", "query": "What is a unknown_entity_016?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0017", "type": "query", "query": "What is a unknown_entity_017?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0018", "type": "query", "query": "What is a unknown_entity_018?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0019", "type": "query", "query": "What is a unknown_entity_019?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0020", "type": "query", "query": "What is a unknown_entity_020?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0021", "type": "query", "query": "What is a unknown_entity_021?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0022", "type": "query", "query": "What is a unknown_entity_022?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0023", "type": "query", "query": "What is a unknown_entity_023?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0024", "type": "query", "query": "What is a unknown_entity_024?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0025", "type": "query", "query": "What is a unknown_entity_025?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0026", "type": "query", "query": "What is a unknown_entity_026?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0027", "type": "query", "query": "What is a unknown_entity_027?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0028", "type": "query", "query": "What is a unknown_entity_028?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0029", "type": "query", "query": "What is a unknown_entity_029?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0030", "type": "query", "query": "What is a unknown_entity_030?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0031", "type": "query", "query": "What is a unknown_entity_031?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0032", "type": "query", "query": "What is a unknown_entity_032?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0033", "type": "query", "query": "What is a unknown_entity_033?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0034", "type": "query", "query": "What is a unknown_entity_034?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0035", "type": "query", "query": "What is a unknown_entity_035?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0036", "type": "query", "query": "What is a unknown_entity_036?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0037", "type": "query", "query": "What is a unknown_entity_037?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0038", "type": "query", "query": "What is a unknown_entity_038?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0039", "type": "query", "query": "What is a unknown_entity_039?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0040", "type": "query", "query": "What is a unknown_entity_040?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0041", "type": "query", "query": "What is a unknown_entity_041?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0042", "type": "query", "query": "What is a unknown_entity_042?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0043", "type": "query", "query": "What is a unknown_entity_043?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0044", "type": "query", "query": "What is a unknown_entity_044?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}
+{"id": "q-honest-0045", "type": "query", "query": "What is a unknown_entity_045?", "expected_mode": "contains_any", "expected_any": ["NEEDS_INPUT", "don't have that knowledge", "NO"], "category": "honesty"}

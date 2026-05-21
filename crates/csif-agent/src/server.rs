@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use crate::agent::CSIFAgent;
+use crate::metadata::AppliedLobe;
 use tokio_stream::iter;
 
 #[derive(Debug, Deserialize)]
@@ -23,6 +24,21 @@ struct QueryRequest {
 #[derive(Debug, Serialize)]
 struct QueryResponse {
     answer: String,
+}
+
+#[derive(Debug, Serialize)]
+struct AdminLobesResponse {
+    lobe_dir: Option<String>,
+    poll_secs: Option<u64>,
+    strict_mode: bool,
+    applied: Vec<AppliedLobe>,
+}
+
+#[derive(Debug, Serialize)]
+struct AdminLobesReloadResponse {
+    lobe_dir: Option<String>,
+    report: crate::agent::LobeRefreshReport,
+    applied: Vec<AppliedLobe>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,6 +116,8 @@ pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
         .route("/health", get(health_handler))
         .route("/query", post(query_handler))
         .route("/teach", post(teach_handler))
+        .route("/admin/lobes", get(admin_lobes_handler))
+        .route("/admin/lobes/reload", post(admin_lobes_reload_handler))
         .route("/v1/chat/completions", post(chat_completion_handler))
         .route("/v1/models", get(models_handler))
         .route("/v1/models/:model_id", get(model_handler))
@@ -128,6 +146,142 @@ async fn teach_handler(
     let mut agent = agent.lock().unwrap();
     let answer = agent.teach(&req.text);
     Json(QueryResponse { answer })
+}
+
+async fn admin_lobes_handler(
+    headers: HeaderMap,
+    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+) -> Result<Json<AdminLobesResponse>, (StatusCode, Json<serde_json::Value>)> {
+    require_admin_token(&headers)?;
+
+    let strict_mode = std::env::var("CSIF_LOBES_STRICT")
+        .ok()
+        .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(false);
+    let lobe_dir = std::env::var("CSIF_LOBES_DIR").ok();
+    let poll_secs = std::env::var("CSIF_LOBES_POLL_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok());
+
+    let applied = {
+        let agent = agent.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire agent lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+        agent.applied_lobes().map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": format!("failed to load lobe state: {err}"),
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?
+    };
+
+    Ok(Json(AdminLobesResponse {
+        lobe_dir,
+        poll_secs,
+        strict_mode,
+        applied,
+    }))
+}
+
+async fn admin_lobes_reload_handler(
+    headers: HeaderMap,
+    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+) -> Result<Json<AdminLobesReloadResponse>, (StatusCode, Json<serde_json::Value>)> {
+    require_admin_token(&headers)?;
+
+    let lobe_dir = std::env::var("CSIF_LOBES_DIR").ok();
+
+    let (report, applied) = {
+        let mut agent = agent.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire agent lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+
+        let report = agent.refresh_lobes_from_env().map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": format!("failed to refresh lobes: {err}"),
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+
+        let applied = agent.applied_lobes().map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": format!("failed to load lobe state: {err}"),
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+
+        (report, applied)
+    };
+
+    Ok(Json(AdminLobesReloadResponse {
+        lobe_dir,
+        report,
+        applied,
+    }))
+}
+
+fn require_admin_token(
+    headers: &HeaderMap,
+) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
+    let Some(expected_token) = std::env::var("CSIF_ADMIN_TOKEN").ok().filter(|value| !value.is_empty()) else {
+        return Ok(());
+    };
+
+    let provided_token = headers
+        .get("x-csif-admin-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
+        .or_else(|| {
+            headers
+                .get("authorization")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+                .map(str::to_string)
+        });
+
+    match provided_token {
+        Some(token) if token == expected_token => Ok(()),
+        _ => Err((
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": {
+                    "message": "missing or invalid admin token",
+                    "type": "unauthorized"
+                }
+            })),
+        )),
+    }
 }
 
 async fn chat_completion_handler(

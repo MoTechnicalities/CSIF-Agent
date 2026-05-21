@@ -1,0 +1,10 @@
+[package]
+name = "bulk_seed"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mogir Jason Rofick <mogir@protonmail.com>"]
+description = "Bulk in-process seed loader for CSIF-Agent"
+license = "Apache-2.0"
+
+[dependencies]
+csif-agent = { path = "../../crates/csif-agent" }

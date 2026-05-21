@@ -9,8 +9,11 @@ services:
       - "8080:8080"
     environment:
       - CSIF_BANK_PATH=/data/my_brain.rwif
+      - CSIF_LOBES_DIR=/data/lobes
+      - CSIF_LOBES_POLL_SECS=5
     volumes:
       - csif-agent-data:/data
+      - ./lobes:/data/lobes:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/health"]

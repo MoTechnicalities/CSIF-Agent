@@ -1,0 +1,3 @@
+a cardiologist is a physician
+a physician is a clinician
+a clinician is a professional

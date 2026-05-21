@@ -1,0 +1,20 @@
+a docker container is a container
+a health endpoint is an endpoint
+a query endpoint is an endpoint
+a teach endpoint is an endpoint
+a contradiction is a conflict
+a rwif bank is an append-only datastore
+a deterministic system has repeatable output
+a local deployment is a private deployment
+a benchmark run is a validation
+a release gate is a quality check
+a response latency is a metric
+a failed check is a signal
+a passing benchmark is a milestone
+a reproducible run is a good run
+a rollback plan is a safety control
+a canary rollout is a rollout strategy
+a stable release is a release
+a failing gate is a block
+a clean worktree is a good state
+a shipped artifact is a deliverable
