@@ -731,19 +731,40 @@ fn format_relation_confirmation(
             format!("NO: I cannot establish that {} causes {}.", subject, object)
         }
         (RelationType::HasProperty, true) => {
-            format!("YES: {} has {}.", subject, object)
+            format!(
+                "YES: {} {} is {}.",
+                article_for(subject),
+                subject,
+                object
+            )
         }
         (RelationType::HasProperty, false) => {
-            format!("NO: I cannot establish that {} has {}.", subject, object)
+            format!(
+                "NO: I cannot establish that {} {} is {}.",
+                article_for(subject),
+                subject,
+                object
+            )
         }
     }
 }
 
 fn format_number(n: f64) -> String {
-    if (n.fract()).abs() < f64::EPSILON {
-        format!("{}", n as i64)
+    // Normalize tiny floating point artifacts for user-facing compute output.
+    let rounded = (n * 1_000_000_000_000.0).round() / 1_000_000_000_000.0;
+    let normalized = if rounded.abs() < 1e-12 { 0.0 } else { rounded };
+
+    if normalized.fract().abs() < 1e-12 {
+        format!("{}", normalized as i64)
     } else {
-        format!("{}", n)
+        let mut s = format!("{:.12}", normalized);
+        while s.contains('.') && s.ends_with('0') {
+            s.pop();
+        }
+        if s.ends_with('.') {
+            s.pop();
+        }
+        s
     }
 }
 
