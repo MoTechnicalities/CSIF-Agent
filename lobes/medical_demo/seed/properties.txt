@@ -1,0 +1,3 @@
+A stethoscope has diagnostic.
+A bandage has absorbent.
+A nurse has clinical.

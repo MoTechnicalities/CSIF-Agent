@@ -40,6 +40,7 @@ COPY --from=builder /out/agent_demo /app/agent_demo
 COPY --from=builder /out/bulk_seed /app/bulk_seed
 COPY grammar.toml /app/grammar.toml
 COPY data/base_lobe_v1/seed /app/data/base_lobe_v1/seed
+COPY lobes /app/lobes
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/agent_demo /app/bulk_seed /app/docker-entrypoint.sh
 
@@ -49,6 +50,8 @@ ENV CSIF_BASE_SEED_DIR=/app/data/base_lobe_v1/seed
 ENV CSIF_BOOTSTRAP_BASE_ON_EMPTY=1
 ENV CSIF_BOOTSTRAP_BASE_MODE=ensure
 ENV CSIF_BASE_BOOTSTRAP_MARKER=/data/.csif_base_lobe_seeded
+ENV CSIF_LOBES_DIR=/app/lobes
+ENV CSIF_LOBES_POLL_SECS=5
 EXPOSE 8080
 VOLUME ["/data"]
 

@@ -11,6 +11,8 @@ services:
       - CSIF_BANK_PATH=/data/my_brain.rwif
       - CSIF_BOOTSTRAP_BASE_ON_EMPTY=1
       - CSIF_BOOTSTRAP_BASE_MODE=ensure
+      - CSIF_LOBES_DIR=/app/lobes
+      - CSIF_LOBES_POLL_SECS=5
     volumes:
       - csif-agent-data:/data
     restart: unless-stopped

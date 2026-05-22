@@ -75,6 +75,9 @@ docker run -d --name csif-agent --restart unless-stopped \
 At startup, the container ensures base lobe knowledge exists before launching the server.
 This keeps base knowledge foundational, while additional configured lobes are layered on top.
 
+The distribution also includes a tiny `medical_demo` lobe bundle that auto-connects additively.
+It is intentionally small and serves only as a template for external domain lobe repos.
+
 - Disable this behavior with `CSIF_BOOTSTRAP_BASE_ON_EMPTY=0`.
 - Default mode is `CSIF_BOOTSTRAP_BASE_MODE=ensure` (seed once if base marker is missing).
 - Use `CSIF_BOOTSTRAP_BASE_MODE=empty` to preserve legacy empty-bank-only behavior.
@@ -261,6 +264,11 @@ CSIF_LOBES_POLL_SECS=5 \
 ```
 
 Place bundles under `./lobes` (for example `./lobes/legal/lobe.toml` from a dedicated lobe repo) and the agent auto-loads compatible bundles.
+
+By default Docker images ship with:
+
+- Base lobe seeding (foundational, always ensured on startup by default).
+- `medical_demo` additive lobe at `/app/lobes/medical_demo`.
 
 Admin endpoints:
 
