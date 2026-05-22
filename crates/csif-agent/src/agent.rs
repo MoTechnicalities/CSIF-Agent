@@ -512,9 +512,23 @@ impl CSIFAgent {
                     Some(format_relation_confirmation(subject, object, relation_type, false))
                 }
             }
-            QueryIntent::ComputeAdd { left, right } => {
-                if let Some(result) = decimal_add(left, right) {
-                    Some(format!("[COMPUTE] {} + {} = {}", left, right, result))
+            QueryIntent::ComputeArithmetic {
+                left,
+                operator,
+                right,
+            } => {
+                let result = match operator.as_str() {
+                    "+" => decimal_add(left, right),
+                    "-" => decimal_sub(left, right),
+                    "*" => decimal_mul(left, right),
+                    "/" => decimal_div(left, right, 18),
+                    _ => None,
+                };
+
+                if let Some(result) = result {
+                    Some(format!("[COMPUTE] {} {} {} = {}", left, operator, right, result))
+                } else if operator == "/" {
+                    Some("[COMPUTE] division is undefined for the provided values".to_string())
                 } else {
                     Some("[COMPUTE] unable to compute exact decimal result".to_string())
                 }
@@ -689,9 +703,11 @@ fn cache_key_for_intent(intent: &QueryIntent) -> String {
             subject,
             object,
         } => format!("{}|{}|{}", subject, relation, object),
-        QueryIntent::ComputeAdd { left, right } => {
-            format!("compute|add|{}|{}", left, right)
-        }
+        QueryIntent::ComputeArithmetic {
+            left,
+            operator,
+            right,
+        } => format!("compute|{}|{}|{}", operator, left, right),
     }
 }
 
@@ -699,7 +715,7 @@ fn subject_hint_for_intent(intent: &QueryIntent) -> &str {
     match intent {
         QueryIntent::Describe { subject } => subject,
         QueryIntent::ConfirmRelation { subject, .. } => subject,
-        QueryIntent::ComputeAdd { .. } => "compute",
+        QueryIntent::ComputeArithmetic { .. } => "compute",
     }
 }
 
@@ -759,6 +775,77 @@ fn decimal_add(left: &str, right: &str) -> Option<String> {
     let sum = lnorm.checked_add(rnorm)?;
 
     Some(format_decimal_scaled(sum, scale))
+}
+
+fn decimal_sub(left: &str, right: &str) -> Option<String> {
+    let (lv, ls) = parse_decimal_scaled(left)?;
+    let (rv, rs) = parse_decimal_scaled(right)?;
+    let scale = ls.max(rs);
+
+    let lmul = pow10_i128(scale.checked_sub(ls)?)?;
+    let rmul = pow10_i128(scale.checked_sub(rs)?)?;
+    let lnorm = lv.checked_mul(lmul)?;
+    let rnorm = rv.checked_mul(rmul)?;
+    let diff = lnorm.checked_sub(rnorm)?;
+
+    Some(format_decimal_scaled(diff, scale))
+}
+
+fn decimal_mul(left: &str, right: &str) -> Option<String> {
+    let (lv, ls) = parse_decimal_scaled(left)?;
+    let (rv, rs) = parse_decimal_scaled(right)?;
+    let scale = ls.checked_add(rs)?;
+    let product = lv.checked_mul(rv)?;
+
+    Some(format_decimal_scaled(product, scale))
+}
+
+fn decimal_div(left: &str, right: &str, max_precision: u32) -> Option<String> {
+    let (lv, ls) = parse_decimal_scaled(left)?;
+    let (rv, rs) = parse_decimal_scaled(right)?;
+    if rv == 0 {
+        return None;
+    }
+
+    let numerator = lv.checked_mul(pow10_i128(rs)?)?;
+    let denominator = rv.checked_mul(pow10_i128(ls)?)?;
+    if denominator == 0 {
+        return None;
+    }
+
+    let negative = (numerator < 0) ^ (denominator < 0);
+    let n_abs = numerator.checked_abs()?;
+    let d_abs = denominator.checked_abs()?;
+
+    let int_part = n_abs / d_abs;
+    let mut remainder = n_abs % d_abs;
+    let mut fractional = String::new();
+
+    for _ in 0..max_precision {
+        if remainder == 0 {
+            break;
+        }
+        remainder = remainder.checked_mul(10)?;
+        let digit = remainder / d_abs;
+        remainder %= d_abs;
+        fractional.push(char::from(b'0' + u8::try_from(digit).ok()?));
+    }
+
+    while fractional.ends_with('0') {
+        fractional.pop();
+    }
+
+    let mut out = if fractional.is_empty() {
+        int_part.to_string()
+    } else {
+        format!("{}.{}", int_part, fractional)
+    };
+
+    if out != "0" && negative {
+        out.insert(0, '-');
+    }
+
+    Some(out)
 }
 
 fn parse_decimal_scaled(input: &str) -> Option<(i128, u32)> {
@@ -1020,7 +1107,7 @@ what_is = "^what is (?:(?:a|an)\\s+)?(.+?)\\?$"
 is_a_confirm = "^is (?:(?:a|an)\\s+)?(.+?) (?:a|an) (.+?)\\?$"
 causes_confirm = "^does (?:(?:a|an)\\s+)?(.+?) cause (.+?)\\?$"
 has_property_confirm = "^does (?:(?:a|an)\\s+)?(.+?) have (.+?)\\?$"
-add_compute = "^what is\\s+(-?\\d+(?:\\.\\d+)?)\\s*\\+\\s*(-?\\d+(?:\\.\\d+)?)\\?$"
+add_compute = "^what is\\s+(-?\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(-?\\d+(?:\\.\\d+)?)\\?$"
 
 [teach]
 is_a = "^(?:a|an) (.+?) is (?:a|an) (.+)$"
@@ -1107,11 +1194,11 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
 
         assert_eq!(
             agent.query("Does a whale have warm-blooded?"),
-            "[CRYSTAL] YES: whale has warm-blooded."
+            "[CRYSTAL] YES: a whale is warm-blooded."
         );
         assert_eq!(
             agent.query("Does a whale have vertebrate?"),
-            "[CRYSTAL] NO: I cannot establish that whale has vertebrate."
+            "[CRYSTAL] NO: I cannot establish that a whale is vertebrate."
         );
 
         let _ = fs::remove_file(bank_path);
@@ -1126,6 +1213,15 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
 
         let answer = agent.query("What is 2 + 2?");
         assert_eq!(answer, "[CRYSTAL] [COMPUTE] 2 + 2 = 4");
+
+        let subtract = agent.query("What is 10 - 3?");
+        assert_eq!(subtract, "[CRYSTAL] [COMPUTE] 10 - 3 = 7");
+
+        let multiply = agent.query("What is 2.5 * 4?");
+        assert_eq!(multiply, "[CRYSTAL] [COMPUTE] 2.5 * 4 = 10");
+
+        let divide = agent.query("What is 7 / 2?");
+        assert_eq!(divide, "[CRYSTAL] [COMPUTE] 7 / 2 = 3.5");
 
         let _ = fs::remove_file(bank_path);
         let _ = fs::remove_file(grammar_path);

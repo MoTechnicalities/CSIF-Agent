@@ -5,7 +5,7 @@ what_is = "^what is (?:(?:a|an)\\s+)?(.+?)\\?$"
 is_a_confirm = "^is (?:(?:a|an)\\s+)?(.+?) (?:a|an) (.+?)\\?$"
 causes_confirm = "^does (?:(?:a|an)\\s+)?(.+?) cause (.+?)\\?$"
 has_property_confirm = "^does (?:(?:a|an)\\s+)?(.+?) have (.+?)\\?$"
-add_compute = "^what is\\s+(-?\\d+(?:\\.\\d+)?)\\s*\\+\\s*(-?\\d+(?:\\.\\d+)?)\\?$"
+add_compute = "^what is\\s+(-?\\d+(?:\\.\\d+)?)\\s*([+\\-*/])\\s*(-?\\d+(?:\\.\\d+)?)\\?$"
 
 [teach]
 is_a = "^(?:a|an) (.+?) is (?:a|an) (.+)$"

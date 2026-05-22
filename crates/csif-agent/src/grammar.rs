@@ -10,7 +10,8 @@ const DEFAULT_QUERY_WHAT_IS: &str = r"^what is (?:(?:a|an)\s+)?(.+?)\?$";
 const DEFAULT_QUERY_IS_A_CONFIRM: &str = r"^is (?:(?:a|an)\s+)?(.+?) (?:a|an) (.+?)\?$";
 const DEFAULT_QUERY_CAUSES_CONFIRM: &str = r"^does (?:(?:a|an)\s+)?(.+?) cause (.+?)\?$";
 const DEFAULT_QUERY_HAS_PROPERTY_CONFIRM: &str = r"^does (?:(?:a|an)\s+)?(.+?) have (.+?)\?$";
-const DEFAULT_QUERY_ADD_COMPUTE: &str = r"^what is\s+(-?\d+(?:\.\d+)?)\s*\+\s*(-?\d+(?:\.\d+)?)\?$";
+const DEFAULT_QUERY_ADD_COMPUTE: &str =
+    r"^what is\s+(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)\?$";
 const DEFAULT_TEACH_IS_A: &str = r"^(?:a|an) (.+?) is (?:a|an) (.+)$";
 const DEFAULT_TEACH_CAUSES: &str = r"^(.+?) causes (.+)$";
 const DEFAULT_TEACH_HAS_PROPERTY: &str = r"^(?:a|an) (.+?) has (.+)$";
@@ -39,7 +40,11 @@ pub enum QueryIntent {
         subject: String,
         object: String,
     },
-    ComputeAdd { left: String, right: String },
+    ComputeArithmetic {
+        left: String,
+        operator: String,
+        right: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -215,8 +220,13 @@ impl Grammar {
 
         if let Some(captures) = self.query_add_compute.captures(&normalized) {
             let left = captures.get(1)?.as_str().to_string();
-            let right = captures.get(2)?.as_str().to_string();
-            return Some(QueryIntent::ComputeAdd { left, right });
+            let operator = captures.get(2)?.as_str().to_string();
+            let right = captures.get(3)?.as_str().to_string();
+            return Some(QueryIntent::ComputeArithmetic {
+                left,
+                operator,
+                right,
+            });
         }
 
         if let Some(captures) = self.query_is_a_confirm.captures(&normalized) {
