@@ -5,6 +5,8 @@ BANK_PATH="${CSIF_BANK_PATH:-/data/my_brain.rwif}"
 GRAMMAR_PATH="${CSIF_GRAMMAR_PATH:-/app/grammar.toml}"
 BASE_SEED_DIR="${CSIF_BASE_SEED_DIR:-/app/data/base_lobe_v1/seed}"
 BOOTSTRAP_ON_EMPTY="${CSIF_BOOTSTRAP_BASE_ON_EMPTY:-1}"
+BOOTSTRAP_MODE="${CSIF_BOOTSTRAP_BASE_MODE:-ensure}"
+BOOTSTRAP_MARKER="${CSIF_BASE_BOOTSTRAP_MARKER:-$(dirname "$BANK_PATH")/.csif_base_lobe_seeded}"
 
 is_enabled() {
   case "${1:-}" in
@@ -30,16 +32,23 @@ bank_is_empty() {
 }
 
 if is_enabled "$BOOTSTRAP_ON_EMPTY"; then
-  if bank_is_empty; then
-    echo "[bootstrap] Empty bank detected at $BANK_PATH"
-    echo "[bootstrap] Seeding base lobe from $BASE_SEED_DIR"
-
-    mkdir -p "$(dirname "$BANK_PATH")"
-    /app/bulk_seed "$BANK_PATH" "$GRAMMAR_PATH" "$BASE_SEED_DIR"
-
-    echo "[bootstrap] Base lobe seed complete"
+  if [ -f "$BOOTSTRAP_MARKER" ]; then
+    echo "[bootstrap] Base lobe marker present; skipping base seed"
   else
-    echo "[bootstrap] Existing bank detected; skipping base seed"
+    should_seed=1
+    if [ "$BOOTSTRAP_MODE" = "empty" ] && ! bank_is_empty; then
+      should_seed=0
+    fi
+
+    if [ "$should_seed" -eq 1 ]; then
+      echo "[bootstrap] Ensuring base lobe from $BASE_SEED_DIR"
+      mkdir -p "$(dirname "$BANK_PATH")"
+      /app/bulk_seed "$BANK_PATH" "$GRAMMAR_PATH" "$BASE_SEED_DIR"
+      date -u +"%Y-%m-%dT%H:%M:%SZ" > "$BOOTSTRAP_MARKER"
+      echo "[bootstrap] Base lobe seed complete"
+    else
+      echo "[bootstrap] Existing non-empty bank detected; skipping due to CSIF_BOOTSTRAP_BASE_MODE=empty"
+    fi
   fi
 else
   echo "[bootstrap] Disabled by CSIF_BOOTSTRAP_BASE_ON_EMPTY=$BOOTSTRAP_ON_EMPTY"

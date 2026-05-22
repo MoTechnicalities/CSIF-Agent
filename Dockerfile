@@ -47,6 +47,8 @@ ENV CSIF_BANK_PATH=/data/my_brain.rwif
 ENV CSIF_GRAMMAR_PATH=/app/grammar.toml
 ENV CSIF_BASE_SEED_DIR=/app/data/base_lobe_v1/seed
 ENV CSIF_BOOTSTRAP_BASE_ON_EMPTY=1
+ENV CSIF_BOOTSTRAP_BASE_MODE=ensure
+ENV CSIF_BASE_BOOTSTRAP_MARKER=/data/.csif_base_lobe_seeded
 EXPOSE 8080
 VOLUME ["/data"]
 

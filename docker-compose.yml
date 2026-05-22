@@ -10,6 +10,7 @@ services:
     environment:
       - CSIF_BANK_PATH=/data/my_brain.rwif
       - CSIF_BOOTSTRAP_BASE_ON_EMPTY=1
+      - CSIF_BOOTSTRAP_BASE_MODE=ensure
     volumes:
       - csif-agent-data:/data
     restart: unless-stopped

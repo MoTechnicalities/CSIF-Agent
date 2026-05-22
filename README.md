@@ -31,6 +31,7 @@ docker run -d --name csif-agent --restart unless-stopped \
 	-e CSIF_BANK_PATH=/data/my_brain.rwif \
 	-e CSIF_GRAMMAR_PATH=/app/grammar.toml \
 	-e CSIF_BOOTSTRAP_BASE_ON_EMPTY=1 \
+	-e CSIF_BOOTSTRAP_BASE_MODE=ensure \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
@@ -66,14 +67,19 @@ docker run -d --name csif-agent --restart unless-stopped \
 	-e CSIF_BANK_PATH=/data/my_brain.rwif \
 	-e CSIF_GRAMMAR_PATH=/app/grammar.toml \
 	-e CSIF_BOOTSTRAP_BASE_ON_EMPTY=1 \
+	-e CSIF_BOOTSTRAP_BASE_MODE=ensure \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
 
-On first boot, the container auto-seeds base lobe knowledge when the target bank is empty.
+At startup, the container ensures base lobe knowledge exists before launching the server.
+This keeps base knowledge foundational, while additional configured lobes are layered on top.
 
 - Disable this behavior with `CSIF_BOOTSTRAP_BASE_ON_EMPTY=0`.
+- Default mode is `CSIF_BOOTSTRAP_BASE_MODE=ensure` (seed once if base marker is missing).
+- Use `CSIF_BOOTSTRAP_BASE_MODE=empty` to preserve legacy empty-bank-only behavior.
 - Default seed source is `CSIF_BASE_SEED_DIR=/app/data/base_lobe_v1/seed`.
+- Default marker path is `CSIF_BASE_BOOTSTRAP_MARKER=/data/.csif_base_lobe_seeded`.
 
 ## No-Docker Quick Start
 
