@@ -41,6 +41,7 @@ pub enum QueryIntent {
         object: String,
     },
     ComputeExpression { expression: String },
+    SolveEquation { equation: String },
 }
 
 #[derive(Debug, Clone)]
@@ -214,6 +215,10 @@ impl Grammar {
     pub fn parse_query(&self, input: &str) -> Option<QueryIntent> {
         let normalized = normalize_query(input);
 
+        if let Some(equation) = extract_solve_equation(&normalized) {
+            return Some(QueryIntent::SolveEquation { equation });
+        }
+
         if let Some(expression) = extract_math_expression(&normalized) {
             return Some(QueryIntent::ComputeExpression { expression });
         }
@@ -332,6 +337,23 @@ fn looks_like_math_expression(expr: &str) -> bool {
         .any(|name| expr.contains(name));
 
     has_digit && (has_operator || has_math_func)
+}
+
+fn extract_solve_equation(normalized_query: &str) -> Option<String> {
+    let mut candidate = None;
+
+    if let Some(rest) = normalized_query.strip_prefix("solve equation ") {
+        candidate = Some(rest);
+    } else if let Some(rest) = normalized_query.strip_prefix("solve ") {
+        candidate = Some(rest);
+    }
+
+    let raw = candidate?.trim_end_matches('?').trim();
+    if raw.contains('=') && raw.contains('x') {
+        Some(raw.to_string())
+    } else {
+        None
+    }
 }
 
 pub fn canonicalize_entity(text: &str) -> Option<String> {

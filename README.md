@@ -327,7 +327,12 @@ Examples:
 ```bash
 curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"What is (9 + 4) * 2?"}'
 curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"calculate sqrt(16) + 3"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve 2x + 3 = 7"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve x^2 - 5x + 6 = 0"}'
 ```
+
+Symbolic equation solving is handled as a separate intent from expression evaluation.
+Current solver scope: linear and quadratic equations in `x`.
 
 To emit LaTeX-ready equations (useful in Open WebUI markdown rendering), set:
 

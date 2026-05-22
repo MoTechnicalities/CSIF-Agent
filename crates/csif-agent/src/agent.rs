@@ -515,6 +515,7 @@ impl CSIFAgent {
             QueryIntent::ComputeExpression { expression } => {
                 Some(render_compute_expression(expression))
             }
+            QueryIntent::SolveEquation { equation } => Some(render_solve_equation(equation)),
         }
     }
 
@@ -688,6 +689,7 @@ fn cache_key_for_intent(intent: &QueryIntent) -> String {
         QueryIntent::ComputeExpression { expression } => {
             format!("compute|{}", expression)
         }
+        QueryIntent::SolveEquation { equation } => format!("solve|{}", equation),
     }
 }
 
@@ -696,6 +698,7 @@ fn subject_hint_for_intent(intent: &QueryIntent) -> &str {
         QueryIntent::Describe { subject } => subject,
         QueryIntent::ConfirmRelation { subject, .. } => subject,
         QueryIntent::ComputeExpression { .. } => "compute",
+        QueryIntent::SolveEquation { .. } => "solve",
     }
 }
 
@@ -758,6 +761,178 @@ fn render_compute_expression(expression: &str) -> String {
         }
         None => "[COMPUTE] unable to evaluate expression".to_string(),
     }
+}
+
+fn render_solve_equation(equation: &str) -> String {
+    match solve_equation(equation) {
+        EquationSolution::LinearUnique(x) => {
+            let value = format_compute_value(x);
+            let mut out = format!("[SOLVE] x = {}", value);
+            if compute_latex_enabled() {
+                out.push_str(&format!(
+                    "\n$$ {} $$\n$$ x = {} $$",
+                    equation_to_latex(equation),
+                    value
+                ));
+            }
+            out
+        }
+        EquationSolution::QuadraticTwoRoots(x1, x2) => {
+            let left = format_compute_value(x1);
+            let right = format_compute_value(x2);
+            let mut out = format!("[SOLVE] x1 = {}, x2 = {}", left, right);
+            if compute_latex_enabled() {
+                out.push_str(&format!(
+                    "\n$$ {} $$\n$$ x_1 = {}, x_2 = {} $$",
+                    equation_to_latex(equation),
+                    left,
+                    right
+                ));
+            }
+            out
+        }
+        EquationSolution::QuadraticOneRoot(x) => {
+            let value = format_compute_value(x);
+            let mut out = format!("[SOLVE] x = {}", value);
+            if compute_latex_enabled() {
+                out.push_str(&format!(
+                    "\n$$ {} $$\n$$ x = {} $$",
+                    equation_to_latex(equation),
+                    value
+                ));
+            }
+            out
+        }
+        EquationSolution::InfiniteSolutions => {
+            "[SOLVE] infinitely many solutions".to_string()
+        }
+        EquationSolution::NoSolution => "[SOLVE] no solution".to_string(),
+        EquationSolution::NoRealRoots => "[SOLVE] no real roots".to_string(),
+        EquationSolution::Unsupported => {
+            "[SOLVE] unsupported equation form; use linear or quadratic in x".to_string()
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum EquationSolution {
+    LinearUnique(f64),
+    QuadraticTwoRoots(f64, f64),
+    QuadraticOneRoot(f64),
+    InfiniteSolutions,
+    NoSolution,
+    NoRealRoots,
+    Unsupported,
+}
+
+fn solve_equation(equation: &str) -> EquationSolution {
+    let compact = equation.replace(' ', "");
+    let mut parts = compact.split('=');
+    let Some(left) = parts.next() else {
+        return EquationSolution::Unsupported;
+    };
+    let Some(right) = parts.next() else {
+        return EquationSolution::Unsupported;
+    };
+    if parts.next().is_some() {
+        return EquationSolution::Unsupported;
+    }
+
+    let Some((a1, b1, c1)) = parse_polynomial_up_to_quadratic(left) else {
+        return EquationSolution::Unsupported;
+    };
+    let Some((a2, b2, c2)) = parse_polynomial_up_to_quadratic(right) else {
+        return EquationSolution::Unsupported;
+    };
+
+    let a = a1 - a2;
+    let b = b1 - b2;
+    let c = c1 - c2;
+    let eps = 1e-12;
+
+    if a.abs() < eps {
+        if b.abs() < eps {
+            if c.abs() < eps {
+                return EquationSolution::InfiniteSolutions;
+            }
+            return EquationSolution::NoSolution;
+        }
+        return EquationSolution::LinearUnique(-c / b);
+    }
+
+    let disc = b * b - 4.0 * a * c;
+    if disc < -eps {
+        return EquationSolution::NoRealRoots;
+    }
+    if disc.abs() <= eps {
+        return EquationSolution::QuadraticOneRoot(-b / (2.0 * a));
+    }
+
+    let sqrt_disc = disc.sqrt();
+    let r1 = (-b - sqrt_disc) / (2.0 * a);
+    let r2 = (-b + sqrt_disc) / (2.0 * a);
+    if r1 <= r2 {
+        EquationSolution::QuadraticTwoRoots(r1, r2)
+    } else {
+        EquationSolution::QuadraticTwoRoots(r2, r1)
+    }
+}
+
+fn parse_polynomial_up_to_quadratic(expr: &str) -> Option<(f64, f64, f64)> {
+    if expr.is_empty() {
+        return None;
+    }
+
+    let normalized = expr.replace('-', "+-");
+    let normalized = if let Some(rest) = normalized.strip_prefix("+-") {
+        rest.to_string()
+    } else {
+        normalized
+    };
+
+    let mut a = 0.0f64;
+    let mut b = 0.0f64;
+    let mut c = 0.0f64;
+
+    for raw_term in normalized.split('+') {
+        let term = raw_term.trim();
+        if term.is_empty() {
+            continue;
+        }
+
+        if let Some(coeff_raw) = term.strip_suffix("x^2") {
+            let coeff = parse_symbolic_coeff(coeff_raw)?;
+            a += coeff;
+            continue;
+        }
+
+        if let Some(coeff_raw) = term.strip_suffix('x') {
+            if term.contains('^') {
+                return None;
+            }
+            let coeff = parse_symbolic_coeff(coeff_raw)?;
+            b += coeff;
+            continue;
+        }
+
+        c += term.parse::<f64>().ok()?;
+    }
+
+    Some((a, b, c))
+}
+
+fn parse_symbolic_coeff(text: &str) -> Option<f64> {
+    match text {
+        "" | "+" => Some(1.0),
+        "-" => Some(-1.0),
+        _ => text.parse::<f64>().ok(),
+    }
+}
+
+fn equation_to_latex(equation: &str) -> String {
+    equation
+        .replace("x^2", "x^{2}")
+        .replace('*', " \\cdot ")
 }
 
 fn compute_latex_enabled() -> bool {
@@ -1424,6 +1599,32 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
         let rendered = render_compute_expression("(9 + 4) * 2");
         std::env::remove_var("CSIF_COMPUTE_LATEX");
         assert!(rendered.contains("\\left(9 + 4\\right) \\cdot 2"));
+    }
+
+    #[test]
+    fn solve_linear_equation_mode_returns_symbolic_solution() {
+        let bank_path = temp_bank_path("solve_linear");
+        let grammar_path = temp_grammar_path("solve_linear");
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        let answer = agent.query("Solve 2x + 3 = 7");
+        assert_eq!(answer, "[CRYSTAL] [SOLVE] x = 2");
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn solve_quadratic_equation_mode_returns_two_roots() {
+        let bank_path = temp_bank_path("solve_quadratic");
+        let grammar_path = temp_grammar_path("solve_quadratic");
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        let answer = agent.query("Solve x^2 - 5x + 6 = 0");
+        assert_eq!(answer, "[CRYSTAL] [SOLVE] x1 = 2, x2 = 3");
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
     }
 
     #[test]
