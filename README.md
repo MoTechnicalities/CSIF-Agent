@@ -30,6 +30,7 @@ docker run -d --name csif-agent --restart unless-stopped \
 	-p 8080:8080 \
 	-e CSIF_BANK_PATH=/data/my_brain.rwif \
 	-e CSIF_GRAMMAR_PATH=/app/grammar.toml \
+	-e CSIF_BOOTSTRAP_BASE_ON_EMPTY=1 \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
@@ -64,9 +65,15 @@ docker run -d --name csif-agent --restart unless-stopped \
 	-p 8080:8080 \
 	-e CSIF_BANK_PATH=/data/my_brain.rwif \
 	-e CSIF_GRAMMAR_PATH=/app/grammar.toml \
+	-e CSIF_BOOTSTRAP_BASE_ON_EMPTY=1 \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
+
+On first boot, the container auto-seeds base lobe knowledge when the target bank is empty.
+
+- Disable this behavior with `CSIF_BOOTSTRAP_BASE_ON_EMPTY=0`.
+- Default seed source is `CSIF_BASE_SEED_DIR=/app/data/base_lobe_v1/seed`.
 
 ## No-Docker Quick Start
 
@@ -247,7 +254,7 @@ CSIF_LOBES_POLL_SECS=5 \
 ./target/release/agent_demo
 ```
 
-Place bundles under `./lobes` (for example `./lobes/medical/lobe.toml`) and the agent auto-loads compatible bundles.
+Place bundles under `./lobes` (for example `./lobes/legal/lobe.toml` from a dedicated lobe repo) and the agent auto-loads compatible bundles.
 
 Admin endpoints:
 

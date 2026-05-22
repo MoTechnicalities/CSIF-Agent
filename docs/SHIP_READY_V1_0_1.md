@@ -64,7 +64,7 @@ Example:
   "strict_mode": false,
   "applied": [
     {
-      "id": "medical",
+      "id": "base",
       "version": "1.0.0",
       "fingerprint": "eadb5af4a7252ba9884bf64066ccf06efe2bc96fd2b6689f6b8dc3373235bca4"
     }
@@ -90,7 +90,7 @@ Example:
   },
   "applied": [
     {
-      "id": "medical",
+      "id": "base",
       "version": "1.0.0",
       "fingerprint": "eadb5af4a7252ba9884bf64066ccf06efe2bc96fd2b6689f6b8dc3373235bca4"
     }

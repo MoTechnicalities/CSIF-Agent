@@ -53,7 +53,7 @@ By default, the agent listens on port `8080` inside the container. You can chang
 | Change both ports | `docker run -e CSIF_PORT=3000 -p 3000:3000 csif-agent:latest` |
 | Run multiple agents | Use different external ports for each |
 
-**Why this matters:** Run different agents for different domains (medical, legal, personal) on different ports, each with its own crystal bank volume.
+**Why this matters:** Run different agents for different domains (legal, finance, personal) on different ports, each with its own crystal bank volume.
 
 ## Volume Mounts
 

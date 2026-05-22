@@ -5,6 +5,7 @@ IMAGE="${IMAGE:-ghcr.io/motechnicalities/csif-agent:latest}"
 CONTAINER_NAME="${CONTAINER_NAME:-csif-agent}"
 DATA_VOLUME="${DATA_VOLUME:-csif-agent-data}"
 HOST_PORT="${HOST_PORT:-8080}"
+BOOTSTRAP_ON_EMPTY="${CSIF_BOOTSTRAP_BASE_ON_EMPTY:-1}"
 
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
   docker rm -f "${CONTAINER_NAME}" >/dev/null
@@ -15,6 +16,7 @@ docker run -d \
   --restart unless-stopped \
   -p "${HOST_PORT}:8080" \
   -e CSIF_BANK_PATH=/data/my_brain.rwif \
+  -e CSIF_BOOTSTRAP_BASE_ON_EMPTY="${BOOTSTRAP_ON_EMPTY}" \
   -v "${DATA_VOLUME}:/data" \
   "${IMAGE}"
 
