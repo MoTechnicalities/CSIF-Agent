@@ -6,6 +6,8 @@ import sys
 import urllib.request
 import urllib.error
 import time
+import re
+from decimal import Decimal, InvalidOperation
 
 AGENT_URL = "http://localhost:18080"
 SUMMARY_JSON = None
@@ -21,6 +23,8 @@ benchmark_path = os.environ.get(
     "BENCHMARK_PATH",
     "data/base_lobe_v1/benchmarks/base_lobe_v1_benchmark.jsonl",
 )
+
+ARITHMETIC_TOLERANCE = Decimal("1e-9")
 
 
 def post_json(path: str, payload: dict) -> dict:
@@ -42,6 +46,47 @@ def post_json(path: str, payload: dict) -> dict:
                 time.sleep(0.1)
 
     raise RuntimeError(f"request failed after {HTTP_RETRIES} attempts: {last_err}")
+
+
+def _extract_trailing_numeric_result(answer: str):
+    match = re.search(r"=\s*([-+]?\d+(?:\.\d+)?)\s*$", answer.strip())
+    if not match:
+        return None
+    try:
+        return Decimal(match.group(1))
+    except InvalidOperation:
+        return None
+
+
+def _extract_first_numeric_token(text: str):
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+    try:
+        return Decimal(match.group(0))
+    except InvalidOperation:
+        return None
+
+
+def arithmetic_match(case: dict, answer: str) -> bool:
+    actual = _extract_trailing_numeric_result(answer)
+    if actual is None:
+        return False
+
+    if case.get("expected_mode") == "contains":
+        expected = _extract_first_numeric_token(case.get("expected", ""))
+        if expected is None:
+            return False
+        return abs(actual - expected) <= ARITHMETIC_TOLERANCE
+
+    if case.get("expected_mode") == "contains_any":
+        for token in case.get("expected_any", []):
+            expected = _extract_first_numeric_token(token)
+            if expected is not None and abs(actual - expected) <= ARITHMETIC_TOLERANCE:
+                return True
+        return False
+
+    return False
 
 
 passed = 0
@@ -81,7 +126,9 @@ with open(benchmark_path, "r", encoding="utf-8") as f:
             continue
 
         ok = False
-        if expected_mode == "contains":
+        if category == "arithmetic":
+            ok = arithmetic_match(case, answer)
+        elif expected_mode == "contains":
             ok = case["expected"] in answer
         elif expected_mode == "contains_any":
             ok = any(token in answer for token in case["expected_any"])

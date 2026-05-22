@@ -513,13 +513,11 @@ impl CSIFAgent {
                 }
             }
             QueryIntent::ComputeAdd { left, right } => {
-                let result = left + right;
-                Some(format!(
-                    "[COMPUTE] {} + {} = {}",
-                    format_number(*left),
-                    format_number(*right),
-                    format_number(result)
-                ))
+                if let Some(result) = decimal_add(left, right) {
+                    Some(format!("[COMPUTE] {} + {} = {}", left, right, result))
+                } else {
+                    Some("[COMPUTE] unable to compute exact decimal result".to_string())
+                }
             }
         }
     }
@@ -692,7 +690,7 @@ fn cache_key_for_intent(intent: &QueryIntent) -> String {
             object,
         } => format!("{}|{}|{}", subject, relation, object),
         QueryIntent::ComputeAdd { left, right } => {
-            format!("compute|add|{}|{}", format_number(*left), format_number(*right))
+            format!("compute|add|{}|{}", left, right)
         }
     }
 }
@@ -749,23 +747,103 @@ fn format_relation_confirmation(
     }
 }
 
-fn format_number(n: f64) -> String {
-    // Normalize tiny floating point artifacts for user-facing compute output.
-    let rounded = (n * 1_000_000_000_000.0).round() / 1_000_000_000_000.0;
-    let normalized = if rounded.abs() < 1e-12 { 0.0 } else { rounded };
+fn decimal_add(left: &str, right: &str) -> Option<String> {
+    let (lv, ls) = parse_decimal_scaled(left)?;
+    let (rv, rs) = parse_decimal_scaled(right)?;
+    let scale = ls.max(rs);
 
-    if normalized.fract().abs() < 1e-12 {
-        format!("{}", normalized as i64)
-    } else {
-        let mut s = format!("{:.12}", normalized);
-        while s.contains('.') && s.ends_with('0') {
-            s.pop();
-        }
-        if s.ends_with('.') {
-            s.pop();
-        }
-        s
+    let lmul = pow10_i128(scale.checked_sub(ls)?)?;
+    let rmul = pow10_i128(scale.checked_sub(rs)?)?;
+    let lnorm = lv.checked_mul(lmul)?;
+    let rnorm = rv.checked_mul(rmul)?;
+    let sum = lnorm.checked_add(rnorm)?;
+
+    Some(format_decimal_scaled(sum, scale))
+}
+
+fn parse_decimal_scaled(input: &str) -> Option<(i128, u32)> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return None;
     }
+
+    let (sign, body) = if let Some(rest) = trimmed.strip_prefix('-') {
+        (-1i128, rest)
+    } else if let Some(rest) = trimmed.strip_prefix('+') {
+        (1i128, rest)
+    } else {
+        (1i128, trimmed)
+    };
+
+    let mut parts = body.split('.');
+    let int_part = parts.next()?;
+    let frac_part = parts.next();
+    if parts.next().is_some() {
+        return None;
+    }
+
+    if int_part.is_empty() || !int_part.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+
+    let frac = frac_part.unwrap_or("");
+    if !frac.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+
+    let scale = frac.len() as u32;
+    let digits = if frac.is_empty() {
+        int_part.to_string()
+    } else {
+        format!("{}{}", int_part, frac)
+    };
+
+    let mut value = digits.parse::<i128>().ok()?;
+    value = value.checked_mul(sign)?;
+    Some((value, scale))
+}
+
+fn format_decimal_scaled(value: i128, scale: u32) -> String {
+    if scale == 0 {
+        return value.to_string();
+    }
+
+    let negative = value < 0;
+    let mut digits = value.abs().to_string();
+    let scale_usize = scale as usize;
+
+    if digits.len() <= scale_usize {
+        let pad = "0".repeat(scale_usize + 1 - digits.len());
+        digits = format!("{}{}", pad, digits);
+    }
+
+    let split = digits.len() - scale_usize;
+    let int_part = &digits[..split];
+    let frac_part = &digits[split..];
+    let frac_trimmed = frac_part.trim_end_matches('0');
+
+    let mut out = if frac_trimmed.is_empty() {
+        int_part.to_string()
+    } else {
+        format!("{}.{}", int_part, frac_trimmed)
+    };
+
+    if out == "0" {
+        return out;
+    }
+
+    if negative {
+        out.insert(0, '-');
+    }
+    out
+}
+
+fn pow10_i128(exp: u32) -> Option<i128> {
+    let mut value = 1i128;
+    for _ in 0..exp {
+        value = value.checked_mul(10)?;
+    }
+    Some(value)
 }
 
 fn slug(text: &str) -> String {

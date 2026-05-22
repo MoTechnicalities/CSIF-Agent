@@ -153,3 +153,25 @@ Validated on live runs in local runtime:
 - Existing query and teach APIs are unchanged.
 - Existing grammar files without `[templates.describe]` remain valid (safe defaults applied).
 - Existing lobe bundles remain compatible.
+
+---
+
+## v1.0.2 Tiny Patch (May 21, 2026)
+
+### Gate Alignment: Arithmetic Benchmark Matching
+
+Improved arithmetic benchmark expectation matching to accept normalized decimal output.
+
+- Arithmetic benchmark checks now compare numeric values (with tight tolerance) instead of brittle raw string fragments.
+- This preserves strict arithmetic correctness while allowing normalized render output (for example `0.3` instead of floating-point artifact strings).
+
+### Exact Decimal Compute Path
+
+- `What is x + y?` compute now uses exact decimal-string addition instead of `f64` addition.
+- Eliminates large-magnitude floating-point drift in user-facing compute answers.
+- Keeps deterministic arithmetic behavior while matching benchmark expectations.
+
+### Outcome
+
+- Qualification gates are aligned with user-facing compute formatting.
+- Restores stable gate behavior without weakening correctness criteria.

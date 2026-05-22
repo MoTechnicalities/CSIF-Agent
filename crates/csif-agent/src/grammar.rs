@@ -39,7 +39,7 @@ pub enum QueryIntent {
         subject: String,
         object: String,
     },
-    ComputeAdd { left: f64, right: f64 },
+    ComputeAdd { left: String, right: String },
 }
 
 #[derive(Debug, Clone)]
@@ -214,8 +214,8 @@ impl Grammar {
         let normalized = normalize_query(input);
 
         if let Some(captures) = self.query_add_compute.captures(&normalized) {
-            let left: f64 = captures.get(1)?.as_str().parse().ok()?;
-            let right: f64 = captures.get(2)?.as_str().parse().ok()?;
+            let left = captures.get(1)?.as_str().to_string();
+            let right = captures.get(2)?.as_str().to_string();
             return Some(QueryIntent::ComputeAdd { left, right });
         }
 
