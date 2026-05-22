@@ -40,11 +40,7 @@ pub enum QueryIntent {
         subject: String,
         object: String,
     },
-    ComputeArithmetic {
-        left: String,
-        operator: String,
-        right: String,
-    },
+    ComputeExpression { expression: String },
 }
 
 #[derive(Debug, Clone)]
@@ -218,14 +214,16 @@ impl Grammar {
     pub fn parse_query(&self, input: &str) -> Option<QueryIntent> {
         let normalized = normalize_query(input);
 
+        if let Some(expression) = extract_math_expression(&normalized) {
+            return Some(QueryIntent::ComputeExpression { expression });
+        }
+
         if let Some(captures) = self.query_add_compute.captures(&normalized) {
             let left = captures.get(1)?.as_str().to_string();
             let operator = captures.get(2)?.as_str().to_string();
             let right = captures.get(3)?.as_str().to_string();
-            return Some(QueryIntent::ComputeArithmetic {
-                left,
-                operator,
-                right,
+            return Some(QueryIntent::ComputeExpression {
+                expression: format!("{} {} {}", left, operator, right),
             });
         }
 
@@ -301,6 +299,39 @@ fn normalize_query(text: &str) -> String {
 
 fn normalize_teach(text: &str) -> String {
     text.trim().trim_end_matches('.').trim().to_lowercase()
+}
+
+fn extract_math_expression(normalized_query: &str) -> Option<String> {
+    if normalized_query.starts_with("what is ") && normalized_query.ends_with('?') {
+        let expr = normalized_query
+            .trim_start_matches("what is ")
+            .trim_end_matches('?')
+            .trim();
+        if looks_like_math_expression(expr) {
+            return Some(expr.to_string());
+        }
+    }
+
+    for prefix in ["calculate ", "compute ", "solve "] {
+        if let Some(rest) = normalized_query.strip_prefix(prefix) {
+            let expr = rest.trim_end_matches('?').trim();
+            if looks_like_math_expression(expr) {
+                return Some(expr.to_string());
+            }
+        }
+    }
+
+    None
+}
+
+fn looks_like_math_expression(expr: &str) -> bool {
+    let has_digit = expr.chars().any(|c| c.is_ascii_digit());
+    let has_operator = expr.chars().any(|c| matches!(c, '+' | '-' | '*' | '/' | '^' | '(' | ')'));
+    let has_math_func = ["sqrt", "abs", "sin", "cos", "tan", "ln", "log"]
+        .iter()
+        .any(|name| expr.contains(name));
+
+    has_digit && (has_operator || has_math_func)
 }
 
 pub fn canonicalize_entity(text: &str) -> Option<String> {

@@ -512,26 +512,8 @@ impl CSIFAgent {
                     Some(format_relation_confirmation(subject, object, relation_type, false))
                 }
             }
-            QueryIntent::ComputeArithmetic {
-                left,
-                operator,
-                right,
-            } => {
-                let result = match operator.as_str() {
-                    "+" => decimal_add(left, right),
-                    "-" => decimal_sub(left, right),
-                    "*" => decimal_mul(left, right),
-                    "/" => decimal_div(left, right, 18),
-                    _ => None,
-                };
-
-                if let Some(result) = result {
-                    Some(format!("[COMPUTE] {} {} {} = {}", left, operator, right, result))
-                } else if operator == "/" {
-                    Some("[COMPUTE] division is undefined for the provided values".to_string())
-                } else {
-                    Some("[COMPUTE] unable to compute exact decimal result".to_string())
-                }
+            QueryIntent::ComputeExpression { expression } => {
+                Some(render_compute_expression(expression))
             }
         }
     }
@@ -703,11 +685,9 @@ fn cache_key_for_intent(intent: &QueryIntent) -> String {
             subject,
             object,
         } => format!("{}|{}|{}", subject, relation, object),
-        QueryIntent::ComputeArithmetic {
-            left,
-            operator,
-            right,
-        } => format!("compute|{}|{}|{}", operator, left, right),
+        QueryIntent::ComputeExpression { expression } => {
+            format!("compute|{}", expression)
+        }
     }
 }
 
@@ -715,7 +695,7 @@ fn subject_hint_for_intent(intent: &QueryIntent) -> &str {
     match intent {
         QueryIntent::Describe { subject } => subject,
         QueryIntent::ConfirmRelation { subject, .. } => subject,
-        QueryIntent::ComputeArithmetic { .. } => "compute",
+        QueryIntent::ComputeExpression { .. } => "compute",
     }
 }
 
@@ -763,174 +743,379 @@ fn format_relation_confirmation(
     }
 }
 
-fn decimal_add(left: &str, right: &str) -> Option<String> {
-    let (lv, ls) = parse_decimal_scaled(left)?;
-    let (rv, rs) = parse_decimal_scaled(right)?;
-    let scale = ls.max(rs);
+fn render_compute_expression(expression: &str) -> String {
+    let parsed = parse_math_expression(expression)
+        .and_then(|node| node.evaluate().map(|value| (node, value)));
 
-    let lmul = pow10_i128(scale.checked_sub(ls)?)?;
-    let rmul = pow10_i128(scale.checked_sub(rs)?)?;
-    let lnorm = lv.checked_mul(lmul)?;
-    let rnorm = rv.checked_mul(rmul)?;
-    let sum = lnorm.checked_add(rnorm)?;
-
-    Some(format_decimal_scaled(sum, scale))
-}
-
-fn decimal_sub(left: &str, right: &str) -> Option<String> {
-    let (lv, ls) = parse_decimal_scaled(left)?;
-    let (rv, rs) = parse_decimal_scaled(right)?;
-    let scale = ls.max(rs);
-
-    let lmul = pow10_i128(scale.checked_sub(ls)?)?;
-    let rmul = pow10_i128(scale.checked_sub(rs)?)?;
-    let lnorm = lv.checked_mul(lmul)?;
-    let rnorm = rv.checked_mul(rmul)?;
-    let diff = lnorm.checked_sub(rnorm)?;
-
-    Some(format_decimal_scaled(diff, scale))
-}
-
-fn decimal_mul(left: &str, right: &str) -> Option<String> {
-    let (lv, ls) = parse_decimal_scaled(left)?;
-    let (rv, rs) = parse_decimal_scaled(right)?;
-    let scale = ls.checked_add(rs)?;
-    let product = lv.checked_mul(rv)?;
-
-    Some(format_decimal_scaled(product, scale))
-}
-
-fn decimal_div(left: &str, right: &str, max_precision: u32) -> Option<String> {
-    let (lv, ls) = parse_decimal_scaled(left)?;
-    let (rv, rs) = parse_decimal_scaled(right)?;
-    if rv == 0 {
-        return None;
-    }
-
-    let numerator = lv.checked_mul(pow10_i128(rs)?)?;
-    let denominator = rv.checked_mul(pow10_i128(ls)?)?;
-    if denominator == 0 {
-        return None;
-    }
-
-    let negative = (numerator < 0) ^ (denominator < 0);
-    let n_abs = numerator.checked_abs()?;
-    let d_abs = denominator.checked_abs()?;
-
-    let int_part = n_abs / d_abs;
-    let mut remainder = n_abs % d_abs;
-    let mut fractional = String::new();
-
-    for _ in 0..max_precision {
-        if remainder == 0 {
-            break;
+    match parsed {
+        Some((node, value)) => {
+            let rendered = format_compute_value(value);
+            let mut out = format!("[COMPUTE] {} = {}", expression, rendered);
+            if compute_latex_enabled() {
+                out.push_str(&format!("\n$$ {} = {} $$", node.to_latex(), rendered));
+            }
+            out
         }
-        remainder = remainder.checked_mul(10)?;
-        let digit = remainder / d_abs;
-        remainder %= d_abs;
-        fractional.push(char::from(b'0' + u8::try_from(digit).ok()?));
+        None => "[COMPUTE] unable to evaluate expression".to_string(),
     }
-
-    while fractional.ends_with('0') {
-        fractional.pop();
-    }
-
-    let mut out = if fractional.is_empty() {
-        int_part.to_string()
-    } else {
-        format!("{}.{}", int_part, fractional)
-    };
-
-    if out != "0" && negative {
-        out.insert(0, '-');
-    }
-
-    Some(out)
 }
 
-fn parse_decimal_scaled(input: &str) -> Option<(i128, u32)> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let (sign, body) = if let Some(rest) = trimmed.strip_prefix('-') {
-        (-1i128, rest)
-    } else if let Some(rest) = trimmed.strip_prefix('+') {
-        (1i128, rest)
-    } else {
-        (1i128, trimmed)
-    };
-
-    let mut parts = body.split('.');
-    let int_part = parts.next()?;
-    let frac_part = parts.next();
-    if parts.next().is_some() {
-        return None;
-    }
-
-    if int_part.is_empty() || !int_part.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-
-    let frac = frac_part.unwrap_or("");
-    if !frac.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-
-    let scale = frac.len() as u32;
-    let digits = if frac.is_empty() {
-        int_part.to_string()
-    } else {
-        format!("{}{}", int_part, frac)
-    };
-
-    let mut value = digits.parse::<i128>().ok()?;
-    value = value.checked_mul(sign)?;
-    Some((value, scale))
+fn compute_latex_enabled() -> bool {
+    std::env::var("CSIF_COMPUTE_LATEX")
+        .ok()
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(false)
 }
 
-fn format_decimal_scaled(value: i128, scale: u32) -> String {
-    if scale == 0 {
-        return value.to_string();
+fn format_compute_value(value: f64) -> String {
+    if !value.is_finite() {
+        return "undefined".to_string();
     }
-
-    let negative = value < 0;
-    let mut digits = value.abs().to_string();
-    let scale_usize = scale as usize;
-
-    if digits.len() <= scale_usize {
-        let pad = "0".repeat(scale_usize + 1 - digits.len());
-        digits = format!("{}{}", pad, digits);
+    let normalized = if value.abs() < 1e-15 { 0.0 } else { value };
+    let mut out = format!("{normalized:.15}");
+    while out.contains('.') && out.ends_with('0') {
+        out.pop();
     }
-
-    let split = digits.len() - scale_usize;
-    let int_part = &digits[..split];
-    let frac_part = &digits[split..];
-    let frac_trimmed = frac_part.trim_end_matches('0');
-
-    let mut out = if frac_trimmed.is_empty() {
-        int_part.to_string()
+    if out.ends_with('.') {
+        out.pop();
+    }
+    if out.is_empty() {
+        "0".to_string()
     } else {
-        format!("{}.{}", int_part, frac_trimmed)
-    };
-
-    if out == "0" {
-        return out;
+        out
     }
-
-    if negative {
-        out.insert(0, '-');
-    }
-    out
 }
 
-fn pow10_i128(exp: u32) -> Option<i128> {
-    let mut value = 1i128;
-    for _ in 0..exp {
-        value = value.checked_mul(10)?;
+#[derive(Debug, Clone)]
+enum MathNode {
+    Number(f64),
+    UnaryMinus(Box<MathNode>),
+    Binary {
+        op: char,
+        left: Box<MathNode>,
+        right: Box<MathNode>,
+    },
+    Function {
+        name: String,
+        arg: Box<MathNode>,
+    },
+}
+
+impl MathNode {
+    fn evaluate(&self) -> Option<f64> {
+        match self {
+            MathNode::Number(v) => Some(*v),
+            MathNode::UnaryMinus(inner) => inner.evaluate().map(|v| -v),
+            MathNode::Binary { op, left, right } => {
+                let l = left.evaluate()?;
+                let r = right.evaluate()?;
+                match op {
+                    '+' => Some(l + r),
+                    '-' => Some(l - r),
+                    '*' => Some(l * r),
+                    '/' => {
+                        if r == 0.0 {
+                            None
+                        } else {
+                            Some(l / r)
+                        }
+                    }
+                    '^' => Some(l.powf(r)),
+                    _ => None,
+                }
+            }
+            MathNode::Function { name, arg } => {
+                let v = arg.evaluate()?;
+                match name.as_str() {
+                    "sqrt" => {
+                        if v < 0.0 {
+                            None
+                        } else {
+                            Some(v.sqrt())
+                        }
+                    }
+                    "abs" => Some(v.abs()),
+                    "sin" => Some(v.sin()),
+                    "cos" => Some(v.cos()),
+                    "tan" => Some(v.tan()),
+                    "ln" => {
+                        if v <= 0.0 {
+                            None
+                        } else {
+                            Some(v.ln())
+                        }
+                    }
+                    "log" => {
+                        if v <= 0.0 {
+                            None
+                        } else {
+                            Some(v.log10())
+                        }
+                    }
+                    _ => None,
+                }
+            }
+        }
     }
-    Some(value)
+
+    fn precedence(&self) -> u8 {
+        match self {
+            MathNode::Number(_) => 5,
+            MathNode::Function { .. } => 5,
+            MathNode::UnaryMinus(_) => 4,
+            MathNode::Binary { op, .. } => match op {
+                '+' | '-' => 1,
+                '*' | '/' => 2,
+                '^' => 3,
+                _ => 0,
+            },
+        }
+    }
+
+    fn to_latex(&self) -> String {
+        self.to_latex_prec(0)
+    }
+
+    fn to_latex_prec(&self, parent_prec: u8) -> String {
+        let rendered = match self {
+            MathNode::Number(v) => format_compute_value(*v),
+            MathNode::UnaryMinus(inner) => format!("-{}", inner.to_latex_prec(self.precedence())),
+            MathNode::Binary { op, left, right } => match op {
+                '+' => format!(
+                    "{} + {}",
+                    left.to_latex_prec(self.precedence()),
+                    right.to_latex_prec(self.precedence())
+                ),
+                '-' => format!(
+                    "{} - {}",
+                    left.to_latex_prec(self.precedence()),
+                    right.to_latex_prec(self.precedence() + 1)
+                ),
+                '*' => format!(
+                    "{} \\cdot {}",
+                    left.to_latex_prec(self.precedence()),
+                    right.to_latex_prec(self.precedence())
+                ),
+                '/' => format!(
+                    "\\frac{{{}}}{{{}}}",
+                    left.to_latex_prec(0),
+                    right.to_latex_prec(0)
+                ),
+                '^' => format!(
+                    "{}^{{{}}}",
+                    left.to_latex_prec(self.precedence()),
+                    right.to_latex_prec(self.precedence())
+                ),
+                _ => String::new(),
+            },
+            MathNode::Function { name, arg } => match name.as_str() {
+                "sqrt" => format!("\\sqrt{{{}}}", arg.to_latex_prec(0)),
+                _ => format!("\\{}\\left({}\\right)", name, arg.to_latex_prec(0)),
+            },
+        };
+
+        if self.precedence() < parent_prec {
+            format!("\\left({}\\right)", rendered)
+        } else {
+            rendered
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum MathToken {
+    Number(f64),
+    Ident(String),
+    Op(char),
+    LParen,
+    RParen,
+}
+
+fn parse_math_expression(expression: &str) -> Option<MathNode> {
+    let tokens = tokenize_math(expression)?;
+    let mut parser = MathParser { tokens, pos: 0 };
+    let node = parser.parse_expression()?;
+    if parser.is_end() { Some(node) } else { None }
+}
+
+fn tokenize_math(expression: &str) -> Option<Vec<MathToken>> {
+    let mut tokens = Vec::new();
+    let chars: Vec<char> = expression.chars().collect();
+    let mut i = 0usize;
+
+    while i < chars.len() {
+        let c = chars[i];
+        if c.is_whitespace() {
+            i += 1;
+            continue;
+        }
+
+        if c.is_ascii_digit() || c == '.' {
+            let start = i;
+            i += 1;
+            while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
+                i += 1;
+            }
+            let raw: String = chars[start..i].iter().collect();
+            tokens.push(MathToken::Number(raw.parse::<f64>().ok()?));
+            continue;
+        }
+
+        if c.is_ascii_alphabetic() {
+            let start = i;
+            i += 1;
+            while i < chars.len() && chars[i].is_ascii_alphabetic() {
+                i += 1;
+            }
+            let ident: String = chars[start..i].iter().collect();
+            tokens.push(MathToken::Ident(ident.to_lowercase()));
+            continue;
+        }
+
+        match c {
+            '+' | '-' | '*' | '/' | '^' => tokens.push(MathToken::Op(c)),
+            '(' => tokens.push(MathToken::LParen),
+            ')' => tokens.push(MathToken::RParen),
+            _ => return None,
+        }
+        i += 1;
+    }
+
+    Some(tokens)
+}
+
+struct MathParser {
+    tokens: Vec<MathToken>,
+    pos: usize,
+}
+
+impl MathParser {
+    fn is_end(&self) -> bool {
+        self.pos >= self.tokens.len()
+    }
+
+    fn peek(&self) -> Option<&MathToken> {
+        self.tokens.get(self.pos)
+    }
+
+    fn advance(&mut self) -> Option<MathToken> {
+        if self.is_end() {
+            return None;
+        }
+        let token = self.tokens[self.pos].clone();
+        self.pos += 1;
+        Some(token)
+    }
+
+    fn parse_expression(&mut self) -> Option<MathNode> {
+        let mut node = self.parse_term()?;
+        loop {
+            match self.peek() {
+                Some(MathToken::Op('+')) => {
+                    self.advance();
+                    let right = self.parse_term()?;
+                    node = MathNode::Binary {
+                        op: '+',
+                        left: Box::new(node),
+                        right: Box::new(right),
+                    };
+                }
+                Some(MathToken::Op('-')) => {
+                    self.advance();
+                    let right = self.parse_term()?;
+                    node = MathNode::Binary {
+                        op: '-',
+                        left: Box::new(node),
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+        Some(node)
+    }
+
+    fn parse_term(&mut self) -> Option<MathNode> {
+        let mut node = self.parse_power()?;
+        loop {
+            match self.peek() {
+                Some(MathToken::Op('*')) => {
+                    self.advance();
+                    let right = self.parse_power()?;
+                    node = MathNode::Binary {
+                        op: '*',
+                        left: Box::new(node),
+                        right: Box::new(right),
+                    };
+                }
+                Some(MathToken::Op('/')) => {
+                    self.advance();
+                    let right = self.parse_power()?;
+                    node = MathNode::Binary {
+                        op: '/',
+                        left: Box::new(node),
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+        Some(node)
+    }
+
+    fn parse_power(&mut self) -> Option<MathNode> {
+        let node = self.parse_unary()?;
+        if matches!(self.peek(), Some(MathToken::Op('^'))) {
+            self.advance();
+            let right = self.parse_power()?;
+            Some(MathNode::Binary {
+                op: '^',
+                left: Box::new(node),
+                right: Box::new(right),
+            })
+        } else {
+            Some(node)
+        }
+    }
+
+    fn parse_unary(&mut self) -> Option<MathNode> {
+        if matches!(self.peek(), Some(MathToken::Op('-'))) {
+            self.advance();
+            let inner = self.parse_unary()?;
+            Some(MathNode::UnaryMinus(Box::new(inner)))
+        } else {
+            self.parse_primary()
+        }
+    }
+
+    fn parse_primary(&mut self) -> Option<MathNode> {
+        match self.advance()? {
+            MathToken::Number(v) => Some(MathNode::Number(v)),
+            MathToken::LParen => {
+                let node = self.parse_expression()?;
+                match self.advance()? {
+                    MathToken::RParen => Some(node),
+                    _ => None,
+                }
+            }
+            MathToken::Ident(name) => {
+                match self.advance()? {
+                    MathToken::LParen => {
+                        let arg = self.parse_expression()?;
+                        match self.advance()? {
+                            MathToken::RParen => Some(MathNode::Function {
+                                name,
+                                arg: Box::new(arg),
+                            }),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 fn slug(text: &str) -> String {
@@ -1225,6 +1410,20 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
 
         let _ = fs::remove_file(bank_path);
         let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn compute_latex_respects_parentheses_precedence() {
+        let node = parse_math_expression("(9 + 4) * 2").unwrap();
+        assert_eq!(node.to_latex(), "\\left(9 + 4\\right) \\cdot 2");
+    }
+
+    #[test]
+    fn compute_renderer_includes_parenthesized_latex() {
+        std::env::set_var("CSIF_COMPUTE_LATEX", "1");
+        let rendered = render_compute_expression("(9 + 4) * 2");
+        std::env::remove_var("CSIF_COMPUTE_LATEX");
+        assert!(rendered.contains("\\left(9 + 4\\right) \\cdot 2"));
     }
 
     #[test]

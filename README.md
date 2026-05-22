@@ -314,6 +314,29 @@ Supported placeholders:
 
 This keeps language style in data (crystallizable), not hardcoded Rust strings.
 
+### Advanced Compute and LaTeX Output
+
+Compute now supports full infix expressions (not only `+`):
+
+- Operators: `+`, `-`, `*`, `/`, `^`
+- Parentheses: `( ... )`
+- Functions: `sqrt`, `abs`, `sin`, `cos`, `tan`, `ln`, `log`
+
+Examples:
+
+```bash
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"What is (9 + 4) * 2?"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"calculate sqrt(16) + 3"}'
+```
+
+To emit LaTeX-ready equations (useful in Open WebUI markdown rendering), set:
+
+```bash
+CSIF_COMPUTE_LATEX=1
+```
+
+When enabled, compute answers include a `$$ ... $$` equation block alongside the plain result.
+
 ```bash
 # Teach the agent
 curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d '{"text":"A whale is a mammal."}'
