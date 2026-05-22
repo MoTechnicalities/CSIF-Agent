@@ -1,6 +1,6 @@
 ## CSIF-Agent: Geometric Intelligence for CPU-Native Agents
 
-[![Rust](https://img.shields.io/badge/rust-1.80+-blue.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.85+-blue.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Benchmarks](https://img.shields.io/badge/benchmarks-99M%20ops%2Fs-brightgreen)](docs/BENCHMARKS.md)
 [![Stars](https://img.shields.io/github/stars/MoTechnicalities/CSIF-Agent?style=social)](https://github.com/MoTechnicalities/CSIF-Agent)

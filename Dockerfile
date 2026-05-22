@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM rust:1.80-alpine AS builder
+FROM rust:1.85-alpine AS builder
 
 RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 
