@@ -7,7 +7,7 @@
 
 > **Deterministic, auditable, CPU-native intelligence. No GPU. No cloud. No hallucination.**
 
-![CSIF-Agent contradiction rejection demo](assets/CSIF-Agent20260519.png)
+![CSIF-Agent contradiction rejection demo](assets/CSIF-Agent20260522.png)
 
 The repository name is `CSIF-Agent`, and the clone/install commands below use that name consistently.
 
@@ -67,6 +67,78 @@ docker run -d --name csif-agent --restart unless-stopped \
 	-v csif-agent-data:/data \
 	ghcr.io/motechnicalities/csif-agent:latest
 ```
+
+## No-Docker Quick Start
+
+Prefer running directly on your machine? Use this path.
+
+### Requirements
+
+- Rust toolchain (stable): https://www.rust-lang.org/tools/install
+- Git
+
+### Linux or macOS
+
+```bash
+git clone https://github.com/MoTechnicalities/CSIF-Agent
+cd CSIF-Agent
+cargo build --release -p agent_demo
+
+CSIF_BANK_PATH=./my_brain.rwif \
+CSIF_GRAMMAR_PATH=./grammar.toml \
+CSIF_PORT=8080 \
+./target/release/agent_demo
+```
+
+In a second terminal:
+
+```bash
+curl -s http://127.0.0.1:8080/health
+curl -s -X POST http://127.0.0.1:8080/query \
+  -H "Content-Type: application/json" \
+  -d '{"text":"What is 2 + 2?"}'
+```
+
+### Windows PowerShell
+
+```powershell
+git clone https://github.com/MoTechnicalities/CSIF-Agent
+Set-Location CSIF-Agent
+cargo build --release -p agent_demo
+
+$env:CSIF_BANK_PATH = ".\\my_brain.rwif"
+$env:CSIF_GRAMMAR_PATH = ".\\grammar.toml"
+$env:CSIF_PORT = "8080"
+.\target\release\agent_demo.exe
+```
+
+In a second PowerShell window:
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -Method Get
+
+$body = @{ text = "What is 2 + 2?" } | ConvertTo-Json
+Invoke-RestMethod -Uri "http://127.0.0.1:8080/query" -Method Post -ContentType "application/json" -Body $body
+```
+
+Notes:
+
+- No GPU is required.
+- No Docker is required.
+- Data is stored in the file set by `CSIF_BANK_PATH`.
+
+### Common Setup Errors
+
+- `cargo: command not found` or `rustc: command not found`:
+  install Rust from https://www.rust-lang.org/tools/install, then open a new terminal and run `cargo --version`.
+- Port already in use (`address already in use` on `8080`):
+  run with a different port, for example:
+  `CSIF_PORT=18080 ./target/release/agent_demo` (Linux/macOS)
+  or set `$env:CSIF_PORT = "18080"` (PowerShell).
+- PowerShell script execution policy blocks local commands:
+  open PowerShell as Administrator and run:
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+  then open a new PowerShell window and retry.
 
 ## The Problem
 
