@@ -51,7 +51,22 @@ struct ChatCompletionRequest {
 #[derive(Debug, Deserialize)]
 struct ChatMessage {
     role: String,
-    content: String,
+    content: ChatMessageContent,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ChatMessageContent {
+    Text(String),
+    Parts(Vec<ChatContentPart>),
+    SinglePart(ChatContentPart),
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatContentPart {
+    #[serde(rename = "type")]
+    part_type: Option<String>,
+    text: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -74,6 +89,30 @@ struct ChatChoice {
 struct ChatResponseMessage {
     role: String,
     content: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatCompletionChunkResponse {
+    id: String,
+    object: String,
+    created: u64,
+    model: String,
+    choices: Vec<ChatChunkChoice>,
+}
+
+#[derive(Debug, Serialize)]
+struct ChatChunkChoice {
+    index: u32,
+    delta: ChatDelta,
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Default)]
+struct ChatDelta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    content: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -297,7 +336,7 @@ async fn chat_completion_handler(
         .iter()
         .rev()
         .find(|message| message.role == "user")
-        .map(|message| message.content.clone())
+        .map(|message| extract_message_text(&message.content))
         .unwrap_or_default();
 
     let mut agent = agent.lock().unwrap();
@@ -319,16 +358,44 @@ async fn chat_completion_handler(
             index: 0,
             message: ChatResponseMessage {
                 role: "assistant".to_string(),
-                content: answer,
+                content: answer.clone(),
             },
             finish_reason: "stop".to_string(),
         }],
     };
 
     if stream {
-        let payload = serde_json::to_string(&response).unwrap_or_else(|_| "{}".to_string());
+        let first_chunk = ChatCompletionChunkResponse {
+            id: response.id.clone(),
+            object: "chat.completion.chunk".to_string(),
+            created: response.created,
+            model: response.model.clone(),
+            choices: vec![ChatChunkChoice {
+                index: 0,
+                delta: ChatDelta {
+                    role: Some("assistant".to_string()),
+                    content: Some(answer),
+                },
+                finish_reason: None,
+            }],
+        };
+        let final_chunk = ChatCompletionChunkResponse {
+            id: response.id.clone(),
+            object: "chat.completion.chunk".to_string(),
+            created: response.created,
+            model: response.model.clone(),
+            choices: vec![ChatChunkChoice {
+                index: 0,
+                delta: ChatDelta::default(),
+                finish_reason: Some("stop".to_string()),
+            }],
+        };
+
+        let first_payload = serde_json::to_string(&first_chunk).unwrap_or_else(|_| "{}".to_string());
+        let final_payload = serde_json::to_string(&final_chunk).unwrap_or_else(|_| "{}".to_string());
         let event_stream = iter(vec![
-            Ok::<Event, Infallible>(Event::default().data(payload)),
+            Ok::<Event, Infallible>(Event::default().data(first_payload)),
+            Ok::<Event, Infallible>(Event::default().data(final_payload)),
             Ok::<Event, Infallible>(Event::default().data("[DONE]")),
         ]);
 
@@ -401,4 +468,20 @@ fn csif_model_info() -> ModelInfo {
 
 async fn health_handler() -> &'static str {
     "ok"
+}
+
+fn extract_message_text(content: &ChatMessageContent) -> String {
+    match content {
+        ChatMessageContent::Text(text) => text.clone(),
+        ChatMessageContent::SinglePart(part) => part.text.clone().unwrap_or_default(),
+        ChatMessageContent::Parts(parts) => parts
+            .iter()
+            .filter(|part| {
+                let t = part.part_type.as_deref().unwrap_or("text");
+                t == "text" || t == "input_text"
+            })
+            .filter_map(|part| part.text.clone())
+            .collect::<Vec<_>>()
+            .join("\n"),
+    }
 }
