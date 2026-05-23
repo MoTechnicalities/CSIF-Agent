@@ -299,7 +299,9 @@ impl Grammar {
 }
 
 fn normalize_query(text: &str) -> String {
-    text.trim().to_lowercase()
+    let mut value = text.trim().to_lowercase();
+    value = value.replace('×', "*");
+    strip_leading_chat_markers(value.as_str()).to_string()
 }
 
 fn normalize_teach(text: &str) -> String {
@@ -312,21 +314,47 @@ fn extract_math_expression(normalized_query: &str) -> Option<String> {
             .trim_start_matches("what is ")
             .trim_end_matches('?')
             .trim();
-        if looks_like_math_expression(expr) {
-            return Some(expr.to_string());
+        let expr = normalize_multiplication_tokens(expr);
+        if looks_like_math_expression(&expr) {
+            return Some(expr);
         }
     }
 
     for prefix in ["calculate ", "compute ", "solve "] {
         if let Some(rest) = normalized_query.strip_prefix(prefix) {
-            let expr = rest.trim_end_matches('?').trim();
-            if looks_like_math_expression(expr) {
-                return Some(expr.to_string());
+            let expr = normalize_multiplication_tokens(rest.trim_end_matches('?').trim());
+            if looks_like_math_expression(&expr) {
+                return Some(expr);
             }
         }
     }
 
     None
+}
+
+fn strip_leading_chat_markers(input: &str) -> &str {
+    let mut text = input.trim();
+    loop {
+        let next = if let Some(rest) = text.strip_prefix("* ") {
+            rest
+        } else if let Some(rest) = text.strip_prefix("- ") {
+            rest
+        } else if let Some(rest) = text.strip_prefix("• ") {
+            rest
+        } else if let Some(rest) = text.strip_prefix("> ") {
+            rest
+        } else {
+            break;
+        };
+        text = next.trim_start();
+    }
+    text
+}
+
+fn normalize_multiplication_tokens(expr: &str) -> String {
+    let regex = Regex::new(r"(-?\d+(?:\.\d+)?)\s*[x]\s*(-?\d+(?:\.\d+)?)")
+        .expect("x-multiplication normalization regex must compile");
+    regex.replace_all(expr, "$1 * $2").to_string()
 }
 
 fn looks_like_math_expression(expr: &str) -> bool {
@@ -374,5 +402,60 @@ pub fn canonicalize_entity(text: &str) -> Option<String> {
         None
     } else {
         Some(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Grammar, QueryIntent};
+
+    #[test]
+    fn parse_query_supports_letter_x_multiplication() {
+        let grammar = Grammar::default();
+        let intent = grammar
+            .parse_query("What is 3 x 9?")
+            .expect("query should parse as compute expression");
+        match intent {
+            QueryIntent::ComputeExpression { expression } => assert_eq!(expression, "3 * 9"),
+            _ => panic!("expected compute expression intent"),
+        }
+    }
+
+    #[test]
+    fn parse_query_supports_times_symbol_multiplication() {
+        let grammar = Grammar::default();
+        let intent = grammar
+            .parse_query("What is 3×9?")
+            .expect("query should parse as compute expression");
+        match intent {
+            QueryIntent::ComputeExpression { expression } => {
+                assert!(expression == "3*9" || expression == "3 * 9")
+            }
+            _ => panic!("expected compute expression intent"),
+        }
+    }
+
+    #[test]
+    fn parse_query_supports_bullet_prefixed_compute() {
+        let grammar = Grammar::default();
+        let intent = grammar
+            .parse_query("* What is 3 * 9?")
+            .expect("query should parse as compute expression");
+        match intent {
+            QueryIntent::ComputeExpression { expression } => assert_eq!(expression, "3 * 9"),
+            _ => panic!("expected compute expression intent"),
+        }
+    }
+
+    #[test]
+    fn parse_query_supports_bullet_prefixed_solve() {
+        let grammar = Grammar::default();
+        let intent = grammar
+            .parse_query("* solve (x+1)/(x-1)=0")
+            .expect("query should parse as solve equation");
+        match intent {
+            QueryIntent::SolveEquation { equation } => assert_eq!(equation, "(x+1)/(x-1)=0"),
+            _ => panic!("expected solve equation intent"),
+        }
     }
 }

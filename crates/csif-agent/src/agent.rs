@@ -1342,7 +1342,13 @@ fn build_language_describe_parse_certificate(subject: &str) -> LanguageParseCert
 }
 
 fn build_fallback_language_certificate(input: &str) -> Option<LanguageCertificate> {
-    let normalized = input.trim().trim_end_matches('.').trim_end_matches('?').trim().to_lowercase();
+    let mut normalized = input
+        .trim()
+        .trim_end_matches('.')
+        .trim_end_matches('?')
+        .trim()
+        .to_lowercase();
+    normalized = strip_leading_chat_markers(normalized.as_str()).to_string();
     if normalized.is_empty() {
         return None;
     }
@@ -1394,6 +1400,25 @@ fn build_fallback_language_certificate(input: &str) -> Option<LanguageCertificat
     }
 
     None
+}
+
+fn strip_leading_chat_markers(input: &str) -> &str {
+    let mut text = input.trim();
+    loop {
+        let next = if let Some(rest) = text.strip_prefix("* ") {
+            rest
+        } else if let Some(rest) = text.strip_prefix("- ") {
+            rest
+        } else if let Some(rest) = text.strip_prefix("• ") {
+            rest
+        } else if let Some(rest) = text.strip_prefix("> ") {
+            rest
+        } else {
+            break;
+        };
+        text = next.trim_start();
+    }
+    text
 }
 
 fn parse_narrative_state_candidate(input: &str) -> Option<(String, String, bool)> {
