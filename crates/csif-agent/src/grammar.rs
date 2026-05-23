@@ -349,7 +349,13 @@ fn extract_solve_equation(normalized_query: &str) -> Option<String> {
     }
 
     let raw = candidate?.trim_end_matches('?').trim();
-    if raw.contains('=') && raw.contains('x') {
+    let has_equation_symbol = raw.contains('=')
+        || raw.contains('<')
+        || raw.contains('>')
+        || raw.contains('≤')
+        || raw.contains('≥');
+    let has_abs = raw.contains('|') || raw.contains("abs(");
+    if has_equation_symbol && (raw.contains('x') || raw.contains('y') || has_abs) {
         Some(raw.to_string())
     } else {
         None

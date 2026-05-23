@@ -329,10 +329,40 @@ curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d 
 curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"calculate sqrt(16) + 3"}'
 curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve 2x + 3 = 7"}'
 curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve x^2 - 5x + 6 = 0"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve x^2 - 5x + 6 >= 0"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve (x-2)(x-3)=0"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve 2x + y = 7; x - y = 2"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve x + y + z = 6; 2x - y + z = 3; -x + 2y + 3z = 12"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve (x-1)/(x+1) > 0"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve |(x+1)/(x-1)| <= 1"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve 0 <= x^2/(x-1) < 3"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve 2x + 3 > 7"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve 1 < x <= 3"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve x > 1; x <= 4"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve x < -1 or x >= 2"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve |x-3|=2"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve |x-3| <= 2"}'
+curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"solve |x-3| > 2"}'
 ```
 
 Symbolic equation solving is handled as a separate intent from expression evaluation.
-Current solver scope: linear and quadratic equations in `x`.
+Current solver scope:
+
+- Linear equations in `x`
+- Linear inequalities in `x` (`<`, `<=`, `>`, `>=`)
+- Chained inequalities in `x` (for example `1 < x <= 3`)
+- Inequality systems with intersection (`;` or `and`) and union (`or`)
+- Quadratic inequalities in `x` with exact interval unions
+- Rational inequalities in `x` with exclusion points from denominators
+- Rational equations in `x` with explicit domain certificates (excluded points)
+- Mixed polynomial/rational inequalities in `x` for quadratic-over-linear forms
+- Absolute-value rational equations and inequalities in `x` with explicit domain certificates
+- Chained mixed inequalities in `x` (for example `0 <= x^2/(x-1) < 3`) with domain certificates
+- Quadratic equations in `x` (including factorized zero-product forms)
+- Absolute-value equations in `x` (for example `|x-3|=2`)
+- Absolute-value inequalities in `x` with interval or union output (for example `|x-3| <= 2`, `|x-3| > 2`)
+- Two-equation linear systems in `x` and `y` using `;` separator
+- Square linear systems with three or more variables using `;` separators
 
 To emit LaTeX-ready equations (useful in Open WebUI markdown rendering), set:
 
@@ -341,6 +371,12 @@ CSIF_COMPUTE_LATEX=1
 ```
 
 When enabled, compute answers include a `$$ ... $$` equation block alongside the plain result.
+Solve answers include step-by-step derivation blocks in `$$ ... $$` format.
+When coefficients are finite decimals, derivations are canonicalized to exact fractions where possible (for example, `0.5` -> `\frac{1}{2}`).
+Quadratic solve derivations also include a substitution check line for returned roots.
+Inequality solve answers are normalized to interval notation, including `\cup` (union) and `\cap`-equivalent intersection simplification.
+Finite excluded points are rendered as hole notation when the normalized solution set is an interval with point exclusions.
+Domain-aware solve responses also include explicit domain certificates for denominator exclusions.
 
 ```bash
 # Teach the agent

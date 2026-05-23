@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::{
         sse::{Event, KeepAlive, Sse},
@@ -8,11 +8,19 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::fs::{self, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
-use crate::agent::CSIFAgent;
+use crate::agent::{
+    evaluate_instruction_execution, verify_proof_certificate, CSIFAgent,
+    InstructionExecutionDecision, ProofCertificate,
+};
 use crate::metadata::AppliedLobe;
 use tokio_stream::iter;
 
@@ -24,6 +32,54 @@ struct QueryRequest {
 #[derive(Debug, Serialize)]
 struct QueryResponse {
     answer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    certificate: Option<ProofCertificate>,
+}
+
+#[derive(Debug, Deserialize)]
+struct VerifyProofRequest {
+    certificate: ProofCertificate,
+}
+
+#[derive(Debug, Serialize)]
+struct VerifyProofResponse {
+    ok: bool,
+    family: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ExecutePlanRequest {
+    certificate: ProofCertificate,
+    action_index: usize,
+    #[serde(default)]
+    approval_token: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ExecuteAuditEvent {
+    timestamp: String,
+    certificate_family: String,
+    action_index: usize,
+    action_hash: String,
+    ok: bool,
+    executed: bool,
+    requires_approval: bool,
+    reason: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AdminExecuteAuditQuery {
+    limit: Option<usize>,
+    family: Option<String>,
+    action_hash: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct AdminExecuteAuditResponse {
+    path: Option<String>,
+    limit: usize,
+    returned: usize,
+    events: Vec<ExecuteAuditEvent>,
 }
 
 #[derive(Debug, Serialize)]
@@ -155,8 +211,11 @@ pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
         .route("/health", get(health_handler))
         .route("/query", post(query_handler))
         .route("/teach", post(teach_handler))
+        .route("/verify-proof", post(verify_proof_handler))
+        .route("/execute-plan", post(execute_plan_handler))
         .route("/admin/lobes", get(admin_lobes_handler))
         .route("/admin/lobes/reload", post(admin_lobes_reload_handler))
+        .route("/admin/execute-audit", get(admin_execute_audit_handler))
         .route("/v1/chat/completions", post(chat_completion_handler))
         .route("/v1/models", get(models_handler))
         .route("/v1/models/:model_id", get(model_handler))
@@ -174,8 +233,11 @@ async fn query_handler(
     Json(req): Json<QueryRequest>,
 ) -> Json<QueryResponse> {
     let mut agent = agent.lock().unwrap();
-    let answer = agent.query(&req.text);
-    Json(QueryResponse { answer })
+    let result = agent.query_with_certificate(&req.text);
+    Json(QueryResponse {
+        answer: result.answer,
+        certificate: result.certificate,
+    })
 }
 
 async fn teach_handler(
@@ -184,7 +246,161 @@ async fn teach_handler(
 ) -> Json<QueryResponse> {
     let mut agent = agent.lock().unwrap();
     let answer = agent.teach(&req.text);
-    Json(QueryResponse { answer })
+    Json(QueryResponse {
+        answer,
+        certificate: None,
+    })
+}
+
+async fn verify_proof_handler(Json(req): Json<VerifyProofRequest>) -> Json<VerifyProofResponse> {
+    let family = req.certificate.family().to_string();
+    let ok = verify_proof_certificate(&req.certificate);
+    Json(VerifyProofResponse { ok, family })
+}
+
+async fn execute_plan_handler(
+    Json(req): Json<ExecutePlanRequest>,
+) -> Json<InstructionExecutionDecision> {
+    let certificate_family = req.certificate.family().to_string();
+    let action_index = req.action_index;
+    let decision = evaluate_instruction_execution(
+        &req.certificate,
+        action_index,
+        req.approval_token.as_deref(),
+    );
+    let audit_event = ExecuteAuditEvent {
+        timestamp: Utc::now().to_rfc3339(),
+        certificate_family,
+        action_index,
+        action_hash: hash_action_signature(
+            action_index,
+            decision.action_kind.as_deref(),
+            decision.action_command.as_deref(),
+        ),
+        ok: decision.ok,
+        executed: decision.executed,
+        requires_approval: decision.requires_approval,
+        reason: decision.reason.clone(),
+    };
+    append_execute_audit_event(&audit_event);
+    Json(decision)
+}
+
+fn hash_action_signature(action_index: usize, kind: Option<&str>, command: Option<&str>) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(action_index.to_string().as_bytes());
+    hasher.update(b"|");
+    hasher.update(kind.unwrap_or("<none>").as_bytes());
+    hasher.update(b"|");
+    hasher.update(command.unwrap_or("<none>").as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn append_execute_audit_event(event: &ExecuteAuditEvent) {
+    let payload = match serde_json::to_string(event) {
+        Ok(value) => value,
+        Err(err) => {
+            eprintln!("execute-audit serialization failed: {err}");
+            return;
+        }
+    };
+
+    if let Ok(path_value) = std::env::var("CSIF_EXEC_AUDIT_LOG_PATH") {
+        let path = Path::new(&path_value);
+        if let Some(parent) = path.parent() {
+            if let Err(err) = fs::create_dir_all(parent) {
+                eprintln!("execute-audit mkdir failed: {err}");
+                return;
+            }
+        }
+        match OpenOptions::new().create(true).append(true).open(path) {
+            Ok(mut file) => {
+                if let Err(err) = writeln!(file, "{payload}") {
+                    eprintln!("execute-audit write failed: {err}");
+                }
+            }
+            Err(err) => eprintln!("execute-audit open failed: {err}"),
+        }
+    } else {
+        eprintln!("execute-audit {payload}");
+    }
+}
+
+async fn admin_execute_audit_handler(
+    headers: HeaderMap,
+    Query(query): Query<AdminExecuteAuditQuery>,
+) -> Result<Json<AdminExecuteAuditResponse>, (StatusCode, Json<serde_json::Value>)> {
+    require_admin_token(&headers)?;
+
+    let limit = query.limit.unwrap_or(50).min(1000);
+    let family_filter = query.family.as_deref();
+    let action_hash_filter = query.action_hash.as_deref();
+
+    let path_value = std::env::var("CSIF_EXEC_AUDIT_LOG_PATH").ok();
+    let Some(path_value) = path_value else {
+        return Ok(Json(AdminExecuteAuditResponse {
+            path: None,
+            limit,
+            returned: 0,
+            events: Vec::new(),
+        }));
+    };
+
+    let path = Path::new(&path_value);
+    if !path.exists() {
+        return Ok(Json(AdminExecuteAuditResponse {
+            path: Some(path_value),
+            limit,
+            returned: 0,
+            events: Vec::new(),
+        }));
+    }
+
+    let file = std::fs::File::open(path).map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": {
+                    "message": format!("failed to open execute audit log: {err}"),
+                    "type": "internal_error"
+                }
+            })),
+        )
+    })?;
+
+    let mut events = Vec::new();
+    for line in BufReader::new(file).lines() {
+        let Ok(line) = line else {
+            continue;
+        };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let Ok(event) = serde_json::from_str::<ExecuteAuditEvent>(&line) else {
+            continue;
+        };
+        if let Some(family) = family_filter {
+            if event.certificate_family != family {
+                continue;
+            }
+        }
+        if let Some(action_hash) = action_hash_filter {
+            if event.action_hash != action_hash {
+                continue;
+            }
+        }
+        events.push(event);
+    }
+
+    let returned = events.len().min(limit);
+    let events = events.into_iter().rev().take(limit).collect::<Vec<_>>();
+
+    Ok(Json(AdminExecuteAuditResponse {
+        path: Some(path_value),
+        limit,
+        returned,
+        events,
+    }))
 }
 
 async fn admin_lobes_handler(
