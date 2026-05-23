@@ -30,7 +30,9 @@ pub struct CSIFAgent {
     pub cache: QueryCache,
     pub index: InvertedIndex,
     pub crystal: RWIFCrystal,
+    pub anti_lobe: RWIFCrystal,
     pub bank_path: PathBuf,
+    pub anti_lobe_bank_path: PathBuf,
     pub grammar: Grammar,
     pub relation_registry: RelationRegistry,
     index_dirty: bool,
@@ -114,6 +116,7 @@ pub struct RequestTimeContext {
     pub request_received_at: String,
     pub unix_ms: i64,
     pub timezone: String,
+    pub initiator: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,6 +127,47 @@ pub struct RouteAuditTrail {
     pub tried: Vec<String>,
     pub stop_reason: String,
     pub negative_evidence: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anti_lobe_bank_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PlayAttemptOutcome {
+    SuccessCrystallized,
+    FailurePersisted,
+    SkippedKnownFailure,
+    SkippedKnownSuccess,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayAttempt {
+    pub relation: String,
+    pub subject: String,
+    pub object: String,
+    pub basis: Vec<String>,
+    pub outcome: PlayAttemptOutcome,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AntiLobeEntry {
+    pub relation: String,
+    pub subject: String,
+    pub object: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_phase: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_source_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_source_id: Option<String>,
+    pub trajectory_len: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AntiLobeSnapshot {
+    pub bank_path: String,
+    pub entry_count: usize,
+    pub entries: Vec<AntiLobeEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -308,12 +352,28 @@ struct RelationInferenceTrace {
 }
 
 fn current_request_time_context() -> RequestTimeContext {
+    current_request_time_context_with_initiator("user")
+}
+
+pub fn current_request_time_context_with_initiator(initiator: &str) -> RequestTimeContext {
     let now = Utc::now();
     RequestTimeContext {
         request_received_at: now.to_rfc3339(),
         unix_ms: now.timestamp_millis(),
         timezone: "UTC".to_string(),
+        initiator: initiator.to_string(),
     }
+}
+
+fn anti_lobe_bank_path(bank_path: &Path) -> PathBuf {
+    let mut path = bank_path.to_path_buf();
+    let stem = bank_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("csif_agent_bank");
+    let ext = bank_path.extension().and_then(|value| value.to_str()).unwrap_or("json");
+    path.set_file_name(format!("{stem}.anti.{ext}"));
+    path
 }
 
 impl CSIFAgent {
@@ -328,11 +388,21 @@ impl CSIFAgent {
         grammar_path: &Path,
     ) -> Result<Self, Box<dyn Error>> {
         let bank_exists = bank_path.exists();
+        let anti_lobe_bank_path = anti_lobe_bank_path(bank_path);
         let mut crystal = if bank_exists {
             RWIFCrystal::load_from_path(bank_path)?
         } else {
             RWIFCrystal {
                 id: "my_brain".to_string(),
+                nodes: Default::default(),
+                edges: Default::default(),
+            }
+        };
+        let anti_lobe = if anti_lobe_bank_path.exists() {
+            RWIFCrystal::load_from_path(&anti_lobe_bank_path)?
+        } else {
+            RWIFCrystal {
+                id: "anti_lobe".to_string(),
                 nodes: Default::default(),
                 edges: Default::default(),
             }
@@ -392,7 +462,9 @@ impl CSIFAgent {
             cache: QueryCache::new(),
             index,
             crystal,
+            anti_lobe,
             bank_path: bank_path.to_path_buf(),
+            anti_lobe_bank_path,
             grammar,
             relation_registry,
             index_dirty: false,
@@ -414,7 +486,40 @@ impl CSIFAgent {
     /// Save crystal bank to disk
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         self.crystal.save_to_path(&self.bank_path)?;
+        self.anti_lobe.save_to_path(&self.anti_lobe_bank_path)?;
         Ok(())
+    }
+
+    pub fn anti_lobe_snapshot(&self) -> AntiLobeSnapshot {
+        let mut entries = self
+            .anti_lobe
+            .edges
+            .values()
+            .filter_map(|edge| {
+                let subject = node_label_by_id(&self.anti_lobe, &edge.source)?.to_string();
+                let object = node_label_by_id(&self.anti_lobe, &edge.target)?.to_string();
+                let last_event = edge.trajectory.last();
+                Some(AntiLobeEntry {
+                    relation: edge.relation.clone(),
+                    subject,
+                    object,
+                    last_phase: last_event.map(|event| event.phase),
+                    last_source_type: last_event.map(|event| event.source.source_type.clone()),
+                    last_source_id: last_event.map(|event| event.source.source_id.clone()),
+                    trajectory_len: edge.trajectory.len(),
+                })
+            })
+            .collect::<Vec<_>>();
+
+        entries.sort_by(|left, right| {
+            (&left.subject, &left.relation, &left.object).cmp(&(&right.subject, &right.relation, &right.object))
+        });
+
+        AntiLobeSnapshot {
+            bank_path: self.anti_lobe_bank_path.display().to_string(),
+            entry_count: entries.len(),
+            entries,
+        }
     }
 
     /// Process a natural language query (or structured input)
@@ -659,14 +764,36 @@ impl CSIFAgent {
             };
         };
 
-        let route_audit = match &intent {
-            QueryIntent::ConfirmRelation {
-                relation,
-                subject,
-                object,
-            } => Some(self.route_audit_for_relation(relation, subject, object)),
-            _ => None,
-        };
+        let mut route_audit = None;
+        if let QueryIntent::ConfirmRelation {
+            relation,
+            subject,
+            object,
+        } = &intent
+        {
+            if let Some(relation_type) = RelationType::from_str(relation) {
+                let (path, trace) = self.infer_relation_path_with_trace(subject, object, relation_type);
+                if path.is_none() && !self.has_explicit_negative_relation(subject, object, relation_type) {
+                    route_audit = Some(RouteAuditTrail {
+                        relation: Some(relation.clone()),
+                        subject: Some(subject.clone()),
+                        object: Some(object.clone()),
+                        tried: trace.tried.clone(),
+                        stop_reason: trace.stop_reason.clone(),
+                        negative_evidence: self.negative_evidence_for_relation(subject, object, relation_type),
+                        anti_lobe_bank_path: self
+                            .has_explicit_negative_relation(subject, object, relation_type)
+                            .then(|| self.anti_lobe_bank_path.display().to_string()),
+                    });
+                    self.persist_negative_relation(subject, object, relation_type, &trace.stop_reason);
+                    self.commit_pending_side_effects();
+                }
+            }
+
+            if route_audit.is_none() {
+                route_audit = Some(self.route_audit_for_relation(relation, subject, object));
+            }
+        }
 
         if let Some(resolution) = self.answer_from_crystal(&intent) {
             let query_phase = 0.0;
@@ -1221,22 +1348,31 @@ impl CSIFAgent {
             return false;
         };
 
-        let subject_id = ensure_node(&mut self.crystal, &fact.subject);
-        let object_id = ensure_node(&mut self.crystal, &fact.object);
-        let edge_id = format!(
-            "e_{}_{}_{}",
-            slug(&fact.subject),
-            relation_type.as_str(),
-            slug(&fact.object)
-        );
+        self.persist_positive_relation(&fact.subject, &fact.object, relation_type, "teach", "local");
+        self.remove_explicit_negative_relation(&fact.subject, &fact.object, relation_type);
+        self.index_dirty = true;
+        true
+    }
+
+    fn persist_positive_relation(
+        &mut self,
+        subject: &str,
+        object: &str,
+        relation_type: RelationType,
+        source_type: &str,
+        source_id: &str,
+    ) {
+        let subject_id = ensure_node(&mut self.crystal, subject);
+        let object_id = ensure_node(&mut self.crystal, object);
+        let edge_id = format!("e_{}_{}_{}", slug(subject), relation_type.as_str(), slug(object));
 
         let event = PhaseEvent {
             timestamp: Utc::now(),
             phase: 0.0,
             sigma: 0.02,
             source: Provenance {
-                source_type: "teach".to_string(),
-                source_id: "local".to_string(),
+                source_type: source_type.to_string(),
+                source_id: source_id.to_string(),
             },
         };
 
@@ -1255,9 +1391,6 @@ impl CSIFAgent {
                 },
             );
         }
-
-        self.index_dirty = true;
-        true
     }
 
     fn persist_language_temporal_state(&mut self, subject: &str, state: &str, negated: bool) {
@@ -1355,6 +1488,84 @@ impl CSIFAgent {
         self.index_dirty = true;
     }
 
+    fn explicit_negative_edge(&self, subject: &str, object: &str, relation: RelationType) -> Option<&RWIFEdge> {
+        let relation_name = format!("not_{}", relation.as_str());
+        self.anti_lobe.edges.values().find(|edge| {
+            if edge.relation != relation_name {
+                return false;
+            }
+
+            let Some(source_label) = node_label_by_id(&self.anti_lobe, &edge.source) else {
+                return false;
+            };
+            let Some(target_label) = node_label_by_id(&self.anti_lobe, &edge.target) else {
+                return false;
+            };
+
+            source_label == subject && target_label == object
+        })
+    }
+
+    fn has_explicit_negative_relation(&self, subject: &str, object: &str, relation: RelationType) -> bool {
+        self.explicit_negative_edge(subject, object, relation).is_some()
+    }
+
+    fn remove_explicit_negative_relation(&mut self, subject: &str, object: &str, relation: RelationType) {
+        let anti_relation = format!("not_{}", relation.as_str());
+        let edge_id = self.anti_lobe.edges.iter().find_map(|(edge_id, edge)| {
+            if edge.relation != anti_relation {
+                return None;
+            }
+
+            let source_label = node_label_by_id(&self.anti_lobe, &edge.source)?;
+            let target_label = node_label_by_id(&self.anti_lobe, &edge.target)?;
+            (source_label == subject && target_label == object).then(|| edge_id.clone())
+        });
+
+        if let Some(edge_id) = edge_id {
+            self.anti_lobe.edges.remove(&edge_id);
+        }
+    }
+
+    fn persist_negative_relation(
+        &mut self,
+        subject: &str,
+        object: &str,
+        relation: RelationType,
+        reason: &str,
+    ) {
+        let subject_id = ensure_node(&mut self.anti_lobe, subject);
+        let object_id = ensure_node(&mut self.anti_lobe, object);
+        let anti_relation = format!("not_{}", relation.as_str());
+        let edge_id = format!("e_{}_{}_{}", slug(subject), anti_relation, slug(object));
+        let event = PhaseEvent {
+            timestamp: Utc::now(),
+            phase: PI,
+            sigma: 0.02,
+            source: Provenance {
+                source_type: "anti_lobe".to_string(),
+                source_id: reason.to_string(),
+            },
+        };
+
+        if let Some(edge) = self.anti_lobe.edges.get_mut(&edge_id) {
+            edge.trajectory.push(event);
+        } else {
+            self.anti_lobe.edges.insert(
+                edge_id.clone(),
+                RWIFEdge {
+                    edge_id,
+                    source: subject_id,
+                    relation: anti_relation,
+                    target: object_id,
+                    lobe: "AntiLobe".to_string(),
+                    trajectory: vec![event],
+                },
+            );
+        }
+
+    }
+
     fn commit_pending_side_effects(&mut self) {
         self.pending_saves = self.pending_saves.saturating_add(1);
         if self.pending_saves >= self.save_every {
@@ -1383,6 +1594,21 @@ impl CSIFAgent {
                 },
             );
         };
+
+        if self.has_explicit_negative_relation(subject, object, relation) {
+            return (
+                None,
+                RelationInferenceTrace {
+                    tried: vec![format!(
+                        "{} -not_{}-> {}",
+                        subject,
+                        relation.as_str(),
+                        object
+                    )],
+                    stop_reason: "anti_lobe_negative_match".to_string(),
+                },
+            );
+        }
 
         if !spec.transitive {
             let direct_targets = self.direct_targets_for_relation(subject, relation);
@@ -1483,6 +1709,19 @@ impl CSIFAgent {
     ) -> Vec<String> {
         let mut evidence = Vec::new();
 
+        if let Some(edge) = self.explicit_negative_edge(subject, object, relation) {
+            if let Some(event) = edge.trajectory.last() {
+                evidence.push(format!(
+                    "Explicit AntiLobe edge observed on {} -{}-> {} (phase {:.3}, source {}).",
+                    subject,
+                    edge.relation,
+                    object,
+                    event.phase,
+                    event.source.source_type
+                ));
+            }
+        }
+
         if let Some(phase) = self.last_phase_for_edge(subject, object, relation) {
             if phase.abs() > (PI - 0.1) {
                 evidence.push(format!(
@@ -1533,6 +1772,9 @@ impl CSIFAgent {
                 tried: trace.tried,
                 stop_reason: trace.stop_reason,
                 negative_evidence: self.negative_evidence_for_relation(subject, object, relation_type),
+                anti_lobe_bank_path: self
+                    .has_explicit_negative_relation(subject, object, relation_type)
+                    .then(|| self.anti_lobe_bank_path.display().to_string()),
             }
         } else {
             RouteAuditTrail {
@@ -1545,6 +1787,7 @@ impl CSIFAgent {
                     "Relation is not registered for inference; no route attempts were executed."
                         .to_string(),
                 ],
+                anti_lobe_bank_path: None,
             }
         }
     }
@@ -1648,6 +1891,214 @@ impl CSIFAgent {
             }
         }
         targets
+    }
+
+    pub fn run_play_cycle(&mut self) -> Vec<PlayAttempt> {
+        let mut attempts = Vec::new();
+
+        if let Some(candidate) = self.next_transitive_play_candidate() {
+            attempts.push(self.play_transitive_candidate(candidate));
+        }
+
+        if let Some(candidate) = self.next_property_play_candidate() {
+            attempts.push(self.play_property_candidate(candidate));
+        }
+
+        attempts
+    }
+
+    pub fn preview_play_cycle(&self) -> Vec<PlayAttempt> {
+        let mut attempts = Vec::new();
+
+        if let Some(mut candidate) = self.next_transitive_play_candidate() {
+            let relation_type = RelationType::from_str(&candidate.relation)
+                .expect("known transitive play relation");
+            if self
+                .direct_targets_for_relation(&candidate.subject, relation_type)
+                .iter()
+                .any(|target| target == &candidate.object)
+            {
+                candidate.outcome = PlayAttemptOutcome::SkippedKnownSuccess;
+                candidate.detail = "direct edge already crystallized".to_string();
+            } else if self
+                .infer_relation_path(&candidate.subject, &candidate.object, relation_type)
+                .is_some()
+            {
+                candidate.outcome = PlayAttemptOutcome::SuccessCrystallized;
+                candidate.detail =
+                    "transitive path verified (preview only; no crystallization write)".to_string();
+            } else {
+                candidate.outcome = PlayAttemptOutcome::FailurePersisted;
+                candidate.detail =
+                    "candidate path not supported (preview only; no anti-lobe write)".to_string();
+            }
+            attempts.push(candidate);
+        }
+
+        if let Some(mut candidate) = self.next_property_play_candidate() {
+            let relation_type = RelationType::HasProperty;
+            if self.has_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type)
+            {
+                candidate.outcome = PlayAttemptOutcome::SkippedKnownFailure;
+                candidate.detail = format!(
+                    "suppressed by Anti-Lobe bank {}",
+                    self.anti_lobe_bank_path.display()
+                );
+            } else if self
+                .infer_relation_path(&candidate.subject, &candidate.object, relation_type)
+                .is_some()
+            {
+                candidate.outcome = PlayAttemptOutcome::SuccessCrystallized;
+                candidate.detail = "property candidate already supported (preview only)".to_string();
+            } else {
+                candidate.outcome = PlayAttemptOutcome::FailurePersisted;
+                candidate.detail =
+                    "property inheritance hypothesis failed (preview only; no anti-lobe write)"
+                        .to_string();
+            }
+            attempts.push(candidate);
+        }
+
+        attempts
+    }
+
+    fn next_transitive_play_candidate(&self) -> Option<PlayAttempt> {
+        let mut candidates = Vec::new();
+        for relation in [RelationType::IsA, RelationType::Causes] {
+            for edge in self.crystal.edges.values() {
+                if edge.relation != relation.as_str() {
+                    continue;
+                }
+                let Some(subject) = node_label_by_id(&self.crystal, &edge.source) else {
+                    continue;
+                };
+                let Some(middle) = node_label_by_id(&self.crystal, &edge.target) else {
+                    continue;
+                };
+
+                for object in self.direct_targets_for_relation(middle, relation) {
+                    if subject == object {
+                        continue;
+                    }
+                    if self.direct_targets_for_relation(subject, relation).iter().any(|target| target == &object) {
+                        continue;
+                    }
+                    candidates.push(PlayAttempt {
+                        relation: relation.as_str().to_string(),
+                        subject: subject.to_string(),
+                        object,
+                        basis: vec![subject.to_string(), middle.to_string()],
+                        outcome: PlayAttemptOutcome::SkippedKnownSuccess,
+                        detail: String::new(),
+                    });
+                }
+            }
+        }
+
+        candidates.sort_by(|left, right| {
+            (&left.relation, &left.subject, &left.object).cmp(&(&right.relation, &right.subject, &right.object))
+        });
+        candidates.into_iter().next()
+    }
+
+    fn play_transitive_candidate(&mut self, mut candidate: PlayAttempt) -> PlayAttempt {
+        let relation_type = RelationType::from_str(&candidate.relation).expect("known transitive play relation");
+        if self.direct_targets_for_relation(&candidate.subject, relation_type)
+            .iter()
+            .any(|target| target == &candidate.object)
+        {
+            candidate.outcome = PlayAttemptOutcome::SkippedKnownSuccess;
+            candidate.detail = "direct edge already crystallized".to_string();
+            return candidate;
+        }
+
+        if self.infer_relation_path(&candidate.subject, &candidate.object, relation_type).is_some() {
+            self.persist_positive_relation(
+                &candidate.subject,
+                &candidate.object,
+                relation_type,
+                "play",
+                "transitive_crystallization",
+            );
+            self.remove_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type);
+            self.index_dirty = true;
+            self.commit_pending_side_effects();
+            candidate.outcome = PlayAttemptOutcome::SuccessCrystallized;
+            candidate.detail = "transitive path verified and crystallized as a direct edge".to_string();
+            return candidate;
+        }
+
+        candidate.outcome = PlayAttemptOutcome::FailurePersisted;
+        candidate.detail = "candidate path was not supported".to_string();
+        self.persist_negative_relation(&candidate.subject, &candidate.object, relation_type, "play_transitive_no_support");
+        self.commit_pending_side_effects();
+        candidate
+    }
+
+    fn next_property_play_candidate(&self) -> Option<PlayAttempt> {
+        let mut candidates = Vec::new();
+        for edge in self.crystal.edges.values() {
+            if edge.relation != RelationType::IsA.as_str() {
+                continue;
+            }
+            let Some(subject) = node_label_by_id(&self.crystal, &edge.source) else {
+                continue;
+            };
+            let Some(parent) = node_label_by_id(&self.crystal, &edge.target) else {
+                continue;
+            };
+
+            for property in self.direct_targets_for_relation(parent, RelationType::HasProperty) {
+                if self.direct_targets_for_relation(subject, RelationType::HasProperty)
+                    .iter()
+                    .any(|target| target == &property)
+                {
+                    continue;
+                }
+                candidates.push(PlayAttempt {
+                    relation: RelationType::HasProperty.as_str().to_string(),
+                    subject: subject.to_string(),
+                    object: property,
+                    basis: vec![subject.to_string(), parent.to_string()],
+                    outcome: PlayAttemptOutcome::SkippedKnownSuccess,
+                    detail: String::new(),
+                });
+            }
+        }
+
+        candidates.sort_by(|left, right| {
+            (&left.subject, &left.object).cmp(&(&right.subject, &right.object))
+        });
+        candidates.into_iter().next()
+    }
+
+    fn play_property_candidate(&mut self, mut candidate: PlayAttempt) -> PlayAttempt {
+        let relation_type = RelationType::HasProperty;
+        if self.has_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type) {
+            candidate.outcome = PlayAttemptOutcome::SkippedKnownFailure;
+            candidate.detail = format!(
+                "suppressed by Anti-Lobe bank {}",
+                self.anti_lobe_bank_path.display()
+            );
+            return candidate;
+        }
+
+        if self.infer_relation_path(&candidate.subject, &candidate.object, relation_type).is_some() {
+            candidate.outcome = PlayAttemptOutcome::SuccessCrystallized;
+            candidate.detail = "property candidate was already supported".to_string();
+            return candidate;
+        }
+
+        self.persist_negative_relation(
+            &candidate.subject,
+            &candidate.object,
+            relation_type,
+            "play_property_no_support",
+        );
+        self.commit_pending_side_effects();
+        candidate.outcome = PlayAttemptOutcome::FailurePersisted;
+        candidate.detail = "property inheritance hypothesis failed and was persisted to Anti-Lobe".to_string();
+        candidate
     }
 
     fn subtypes_for(&self, parent: &str, relation: RelationType) -> Vec<String> {
@@ -7099,6 +7550,180 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
         assert!(query_payload.route_audit.is_some());
 
         let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn negative_relation_query_persists_explicit_anti_lobe_edge() {
+        let bank_path = temp_bank_path("anti_lobe_persist");
+        let grammar_path = temp_grammar_path("anti_lobe_persist");
+        let anti_bank_path = anti_lobe_bank_path(&bank_path);
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        assert_eq!(
+            agent.teach("a whale is a mammal"),
+            "[TEACHING] Knowledge crystallized."
+        );
+
+        let first = agent.query_with_certificate("Is a whale a reptile?");
+        assert!(first.answer.contains("NO:"));
+        let first_audit = first
+            .route_audit
+            .as_ref()
+            .expect("expected route audit on first negative query");
+        assert_eq!(first_audit.stop_reason, "no_supporting_path");
+
+        let anti_edge = agent
+            .anti_lobe
+            .edges
+            .values()
+            .find(|edge| edge.relation == "not_is_a")
+            .expect("expected persisted AntiLobe edge");
+        assert_eq!(anti_edge.lobe, "AntiLobe");
+        assert!(
+            anti_edge
+                .trajectory
+                .last()
+                .map(|event| (event.phase - PI).abs() < 0.0001)
+                .unwrap_or(false)
+        );
+
+        agent.save().unwrap();
+        let reloaded = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+        assert!(reloaded.has_explicit_negative_relation("whale", "reptile", RelationType::IsA));
+        assert!(anti_bank_path.exists());
+        assert!(
+            reloaded
+                .crystal
+                .edges
+                .values()
+                .all(|edge| edge.relation != "not_is_a")
+        );
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(anti_bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn repeated_negative_relation_query_uses_anti_lobe_short_circuit() {
+        let bank_path = temp_bank_path("anti_lobe_repeat");
+        let grammar_path = temp_grammar_path("anti_lobe_repeat");
+        let anti_bank_path = anti_lobe_bank_path(&bank_path);
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        assert_eq!(
+            agent.teach("a whale is a mammal"),
+            "[TEACHING] Knowledge crystallized."
+        );
+
+        let _ = agent.query_with_certificate("Is a whale a reptile?");
+        let second = agent.query_with_certificate("Is a whale a reptile?");
+        let second_audit = second
+            .route_audit
+            .as_ref()
+            .expect("expected route audit on repeated negative query");
+        assert_eq!(second_audit.stop_reason, "anti_lobe_negative_match");
+        assert_eq!(
+            second_audit.anti_lobe_bank_path.as_deref(),
+            Some(anti_bank_path.to_string_lossy().as_ref())
+        );
+        assert!(
+            second_audit
+                .negative_evidence
+                .iter()
+                .any(|line| line.contains("Explicit AntiLobe edge observed"))
+        );
+
+        let explain = agent.explain_query("Is a whale a reptile?");
+        let explain_audit = explain
+            .route_audit
+            .as_ref()
+            .expect("expected explain route audit on repeated negative query");
+        assert_eq!(explain_audit.stop_reason, "anti_lobe_negative_match");
+        assert_eq!(
+            explain_audit.anti_lobe_bank_path.as_deref(),
+            Some(anti_bank_path.to_string_lossy().as_ref())
+        );
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(anti_bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn play_cycle_crystallizes_success_and_suppresses_repeated_failed_hypotheses() {
+        let bank_path = temp_bank_path("play_cycle");
+        let grammar_path = temp_grammar_path("play_cycle");
+        let anti_bank_path = anti_lobe_bank_path(&bank_path);
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        assert_eq!(
+            agent.teach("a whale is a mammal"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert_eq!(
+            agent.teach("a mammal is an animal"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert_eq!(
+            agent.teach("a mammal has vertebrate"),
+            "[TEACHING] Knowledge crystallized."
+        );
+
+        let first = agent.run_play_cycle();
+        assert_eq!(first.len(), 2);
+        assert_eq!(first[0].relation, "is_a");
+        assert_eq!(first[0].subject, "whale");
+        assert_eq!(first[0].object, "animal");
+        assert_eq!(first[0].outcome, PlayAttemptOutcome::SuccessCrystallized);
+        assert!(
+            agent
+                .direct_targets_for_relation("whale", RelationType::IsA)
+                .iter()
+                .any(|target| target == "animal")
+        );
+
+        assert_eq!(first[1].relation, "has_property");
+        assert_eq!(first[1].subject, "whale");
+        assert_eq!(first[1].object, "vertebrate");
+        assert_eq!(first[1].outcome, PlayAttemptOutcome::FailurePersisted);
+        assert!(agent.has_explicit_negative_relation("whale", "vertebrate", RelationType::HasProperty));
+
+        let second = agent.run_play_cycle();
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].relation, "has_property");
+        assert_eq!(second[0].outcome, PlayAttemptOutcome::SkippedKnownFailure);
+        assert!(second[0].detail.contains(anti_bank_path.to_string_lossy().as_ref()));
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(anti_bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn teaching_true_relation_removes_obsolete_anti_lobe_edge() {
+        let bank_path = temp_bank_path("anti_lobe_obsolete_cleanup");
+        let grammar_path = temp_grammar_path("anti_lobe_obsolete_cleanup");
+        let anti_bank_path = anti_lobe_bank_path(&bank_path);
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        let _ = agent.query_with_certificate("Is a whale a reptile?");
+        assert!(agent.has_explicit_negative_relation("whale", "reptile", RelationType::IsA));
+
+        assert_eq!(
+            agent.teach("a whale is a reptile"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert!(!agent.has_explicit_negative_relation("whale", "reptile", RelationType::IsA));
+
+        let explain = agent.explain_query("Is a whale a reptile?");
+        assert_eq!(explain.answer, "[CRYSTAL] YES: a whale is a reptile.");
+        let route_audit = explain.route_audit.as_ref().expect("expected route audit");
+        assert_eq!(route_audit.stop_reason, "path_found");
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(anti_bank_path);
         let _ = fs::remove_file(grammar_path);
     }
 

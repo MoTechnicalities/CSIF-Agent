@@ -286,7 +286,51 @@ curl -s -X POST http://localhost:8080/admin/lobes/reload
 
 # Trigger manual refresh with auth enabled
 curl -s -X POST -H "Authorization: Bearer $CSIF_ADMIN_TOKEN" http://localhost:8080/admin/lobes/reload
+
+# Inspect bounded play scheduler status and recent play-cycle outcomes
+curl -s http://localhost:8080/admin/play
+
+# Force one deterministic play tick before returning status/history
+curl -s http://localhost:8080/admin/play?force=1
+
+# Inspect play runtime with auth enabled
+curl -s -H "X-CSIF-Admin-Token: $CSIF_ADMIN_TOKEN" http://localhost:8080/admin/play
+
+# Inspect observation scheduler status and recent observation audits
+curl -s http://localhost:8080/admin/observation
+
+# Force one deterministic observation tick before returning status/history
+curl -s http://localhost:8080/admin/observation?force=1
+
+# Inspect observation runtime with auth enabled
+curl -s -H "X-CSIF-Admin-Token: $CSIF_ADMIN_TOKEN" http://localhost:8080/admin/observation
 ```
+
+Play runtime environment variables:
+
+- `CSIF_PLAY_ENABLED`: enable bounded background play scheduling (`1|true|yes` to enable).
+- `CSIF_PLAY_POLL_SECS`: scheduler tick interval in seconds (default `30`, minimum `1`).
+- `CSIF_PLAY_MAX_MS`: per-tick play runtime budget in milliseconds (default `200`, minimum `1`).
+- `CSIF_PLAY_MAX_CYCLES_PER_TICK`: maximum play cycles per scheduler tick (default `2`, clamped to `1..32`).
+- `CSIF_PLAY_HISTORY_LIMIT`: maximum `/admin/play` stored cycle records (default `100`, clamped to `1..1000`).
+- `CSIF_PLAY_APPROVAL_TOKEN`: enables play-loop writes (without this token, play runs in audit-only preview mode).
+
+Observation runtime environment variables:
+
+- `CSIF_OBSERVE_ENABLED`: enable bounded background observation scheduling (`1|true|yes` to enable).
+- `CSIF_OBSERVE_POLL_SECS`: observation tick interval in seconds (default `3600`, minimum `1`).
+- `CSIF_OBSERVE_MAX_MS`: per-tick observation runtime budget in milliseconds (default `250`, minimum `1`).
+- `CSIF_OBSERVE_HISTORY_LIMIT`: maximum `/admin/observation` stored cycle records (default `100`, clamped to `1..1000`).
+- `CSIF_OBSERVE_SOURCE`: provenance label included in observation audit events (default `internal:observation`).
+- `CSIF_OBSERVE_QUERY`: self-query text used by observation ticks.
+- `CSIF_OBSERVE_APPROVAL_TOKEN`: reserved approval token for future observation write paths.
+- `CSIF_OBSERVE_NO_PATH_THRESHOLD`: minimum negative-evidence score required to classify `no_supporting_path` as anomaly (default `1`).
+- `CSIF_OBSERVE_CONTRADICTION_THRESHOLD`: minimum negative-evidence score required to classify `contradiction` as anomaly (default `1`).
+
+Loop audit stream:
+
+- `CSIF_LOOP_AUDIT_LOG_PATH`: append-only JSONL sink for play/observation audit events.
+- Loop audit events include `initiator` (`system:play` or `system:observation`) plus `route_audit`, `stop_reason`, and `request_time_context`.
 
 Full format and directory convention: [docs/LOBE_BUNDLE_FORMAT.md](docs/LOBE_BUNDLE_FORMAT.md)
 

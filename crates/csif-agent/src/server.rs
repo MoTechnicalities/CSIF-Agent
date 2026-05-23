@@ -11,6 +11,7 @@ use axum::{
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::VecDeque;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -18,12 +19,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use crate::agent::{
-    evaluate_instruction_execution, verify_proof_certificate, CSIFAgent,
+    evaluate_instruction_execution, verify_proof_certificate, AntiLobeSnapshot, CSIFAgent,
     CompositeQuerySummary, ExplainResultPayload, InstructionExecutionDecision, ProofCertificate,
-    QueryClauseResult, RequestTimeContext, RouteAuditTrail,
+    QueryClauseResult, RequestTimeContext, RouteAuditTrail, PlayAttempt, PlayAttemptOutcome,
+    current_request_time_context_with_initiator,
 };
 use crate::metadata::AppliedLobe;
 use tokio_stream::iter;
+use tokio::time::Duration;
 
 #[derive(Debug, Deserialize)]
 struct QueryRequest {
@@ -102,6 +105,11 @@ struct AdminExecuteAuditQuery {
     action_hash: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct AdminLoopQuery {
+    force: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct AdminExecuteAuditResponse {
     path: Option<String>,
@@ -123,6 +131,148 @@ struct AdminLobesReloadResponse {
     lobe_dir: Option<String>,
     report: crate::agent::LobeRefreshReport,
     applied: Vec<AppliedLobe>,
+}
+
+#[derive(Debug, Serialize)]
+struct AdminAntiLobeResponse {
+    anti_lobe: AntiLobeSnapshot,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct LoopAuditRecord {
+    timestamp: String,
+    initiator: String,
+    query: String,
+    route_audit: RouteAuditTrail,
+    stop_reason: String,
+    request_time_context: RequestTimeContext,
+    taught: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    anomaly_classification: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    anomaly_score: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PlaySchedulerStatus {
+    enabled: bool,
+    poll_secs: u64,
+    max_cycles_per_tick: usize,
+    max_ms: u64,
+    write_approval_configured: bool,
+    history_limit: usize,
+    stored_cycles: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PlayCycleRecord {
+    started_at: String,
+    completed_at: String,
+    cycles_run: usize,
+    attempts: Vec<PlayAttempt>,
+    audit_events: Vec<LoopAuditRecord>,
+    success_crystallized: usize,
+    failure_persisted: usize,
+    suppressed_failures: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct AdminPlayResponse {
+    scheduler: PlaySchedulerStatus,
+    recent_cycles: Vec<PlayCycleRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ObservationSchedulerStatus {
+    enabled: bool,
+    poll_secs: u64,
+    max_ms: u64,
+    history_limit: usize,
+    source: String,
+    query: String,
+    write_approval_configured: bool,
+    no_supporting_path_threshold: usize,
+    contradiction_threshold: usize,
+    stored_cycles: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ObservationCycleRecord {
+    started_at: String,
+    completed_at: String,
+    observations_run: usize,
+    anomalies_detected: usize,
+    audit_events: Vec<LoopAuditRecord>,
+}
+
+#[derive(Debug, Serialize)]
+struct AdminObservationResponse {
+    scheduler: ObservationSchedulerStatus,
+    recent_cycles: Vec<ObservationCycleRecord>,
+}
+
+#[derive(Debug, Clone)]
+struct PlaySchedulerConfig {
+    enabled: bool,
+    poll_secs: u64,
+    max_cycles_per_tick: usize,
+    max_ms: u64,
+    history_limit: usize,
+    approval_token: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ObservationSchedulerConfig {
+    enabled: bool,
+    poll_secs: u64,
+    max_ms: u64,
+    history_limit: usize,
+    source: String,
+    query: String,
+    approval_token: Option<String>,
+    anomaly_policy: ObservationAnomalyPolicy,
+}
+
+#[derive(Debug, Clone)]
+struct ObservationAnomalyPolicy {
+    no_supporting_path_threshold: usize,
+    contradiction_threshold: usize,
+}
+
+#[derive(Debug)]
+struct PlayRuntimeState {
+    config: PlaySchedulerConfig,
+    history: Mutex<VecDeque<PlayCycleRecord>>,
+}
+
+#[derive(Debug)]
+struct ObservationRuntimeState {
+    config: ObservationSchedulerConfig,
+    history: Mutex<VecDeque<ObservationCycleRecord>>,
+}
+
+struct AppState {
+    agent: Arc<Mutex<CSIFAgent>>,
+    play_runtime: Arc<PlayRuntimeState>,
+    observation_runtime: Arc<ObservationRuntimeState>,
+}
+
+impl AppState {
+    fn new(agent: Arc<Mutex<CSIFAgent>>) -> Self {
+        Self {
+            agent,
+            play_runtime: Arc::new(PlayRuntimeState {
+                config: play_scheduler_config_from_env(),
+                history: Mutex::new(VecDeque::new()),
+            }),
+            observation_runtime: Arc::new(ObservationRuntimeState {
+                config: observation_scheduler_config_from_env(),
+                history: Mutex::new(VecDeque::new()),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -235,6 +385,13 @@ struct ModelPermission {
 static CHAT_COMPLETION_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub fn build_app(agent: Arc<Mutex<CSIFAgent>>) -> Router {
+    let state = Arc::new(AppState::new(agent));
+
+    build_router(state)
+}
+
+fn build_router(state: Arc<AppState>) -> Router {
+
     Router::new()
         .route("/health", get(health_handler))
         .route("/query", post(query_handler))
@@ -245,15 +402,22 @@ pub fn build_app(agent: Arc<Mutex<CSIFAgent>>) -> Router {
         .route("/execute-plan", post(execute_plan_handler))
         .route("/admin/lobes", get(admin_lobes_handler))
         .route("/admin/lobes/reload", post(admin_lobes_reload_handler))
+        .route("/admin/anti-lobe", get(admin_anti_lobe_handler))
+        .route("/admin/play", get(admin_play_handler))
+        .route("/admin/observation", get(admin_observation_handler))
         .route("/admin/execute-audit", get(admin_execute_audit_handler))
         .route("/v1/chat/completions", post(chat_completion_handler))
         .route("/v1/models", get(models_handler))
         .route("/v1/models/:model_id", get(model_handler))
-        .with_state(agent)
+        .with_state(state)
 }
 
 pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
-    let app = build_app(agent);
+    let state = Arc::new(AppState::new(agent));
+    spawn_play_scheduler(Arc::clone(&state));
+    spawn_observation_scheduler(Arc::clone(&state));
+
+    let app = build_router(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
@@ -263,9 +427,10 @@ pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
 }
 
 async fn query_handler(
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<QueryRequest>,
 ) -> Json<QueryResponse> {
+    let agent = &state.agent;
     let mut agent = agent.lock().unwrap();
     let result = agent.query_with_certificate(&req.text);
     Json(QueryResponse {
@@ -279,9 +444,10 @@ async fn query_handler(
 }
 
 async fn teach_handler(
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<QueryRequest>,
 ) -> Json<QueryResponse> {
+    let agent = &state.agent;
     let mut agent = agent.lock().unwrap();
     let answer = agent.teach(&req.text);
     Json(QueryResponse {
@@ -295,15 +461,16 @@ async fn teach_handler(
 }
 
 async fn explain_handler(
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<ExplainRequest>,
 ) -> Json<ExplainResultPayload> {
+    let agent = &state.agent;
     let agent = agent.lock().unwrap();
     Json(agent.explain_query(&req.text))
 }
 
 async fn visualize_handler(
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<VisualizeRequest>,
 ) -> Json<VisualizeResponse> {
     let format = req
@@ -313,6 +480,7 @@ async fn visualize_handler(
         .trim()
         .to_lowercase();
 
+    let agent = &state.agent;
     let mut agent = agent.lock().unwrap();
     let explain = agent.explain_query(&req.text);
     let query = agent.query_with_certificate(&req.text);
@@ -492,9 +660,11 @@ async fn admin_execute_audit_handler(
 
 async fn admin_lobes_handler(
     headers: HeaderMap,
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<AdminLobesResponse>, (StatusCode, Json<serde_json::Value>)> {
     require_admin_token(&headers)?;
+
+    let agent = &state.agent;
 
     let strict_mode = std::env::var("CSIF_LOBES_STRICT")
         .ok()
@@ -540,9 +710,11 @@ async fn admin_lobes_handler(
 
 async fn admin_lobes_reload_handler(
     headers: HeaderMap,
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
 ) -> Result<Json<AdminLobesReloadResponse>, (StatusCode, Json<serde_json::Value>)> {
     require_admin_token(&headers)?;
+
+    let agent = &state.agent;
 
     let lobe_dir = std::env::var("CSIF_LOBES_DIR").ok();
 
@@ -593,6 +765,159 @@ async fn admin_lobes_reload_handler(
     }))
 }
 
+async fn admin_anti_lobe_handler(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<AdminAntiLobeResponse>, (StatusCode, Json<serde_json::Value>)> {
+    require_admin_token(&headers)?;
+
+    let agent = &state.agent;
+
+    let anti_lobe = {
+        let agent = agent.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire agent lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+        agent.anti_lobe_snapshot()
+    };
+
+    Ok(Json(AdminAntiLobeResponse { anti_lobe }))
+}
+
+async fn admin_play_handler(
+    headers: HeaderMap,
+    Query(query): Query<AdminLoopQuery>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<AdminPlayResponse>, (StatusCode, Json<serde_json::Value>)> {
+    require_admin_token(&headers)?;
+
+    if parse_force_flag(query.force.as_deref()) {
+        if let Some(record) = run_bounded_play_tick(&state) {
+            push_play_history(&state, record);
+        }
+    }
+
+    let scheduler = {
+        let history = state.play_runtime.history.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire play runtime lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+
+        PlaySchedulerStatus {
+            enabled: state.play_runtime.config.enabled,
+            poll_secs: state.play_runtime.config.poll_secs,
+            max_cycles_per_tick: state.play_runtime.config.max_cycles_per_tick,
+            max_ms: state.play_runtime.config.max_ms,
+            write_approval_configured: state.play_runtime.config.approval_token.is_some(),
+            history_limit: state.play_runtime.config.history_limit,
+            stored_cycles: history.len(),
+        }
+    };
+
+    let recent_cycles = {
+        let history = state.play_runtime.history.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire play runtime lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+        history.iter().rev().cloned().collect::<Vec<_>>()
+    };
+
+    Ok(Json(AdminPlayResponse {
+        scheduler,
+        recent_cycles,
+    }))
+}
+
+async fn admin_observation_handler(
+    headers: HeaderMap,
+    Query(query): Query<AdminLoopQuery>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<AdminObservationResponse>, (StatusCode, Json<serde_json::Value>)> {
+    require_admin_token(&headers)?;
+
+    if parse_force_flag(query.force.as_deref()) {
+        if let Some(record) = run_observation_tick(&state) {
+            push_observation_history(&state, record);
+        }
+    }
+
+    let scheduler = {
+        let history = state.observation_runtime.history.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire observation runtime lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+
+        ObservationSchedulerStatus {
+            enabled: state.observation_runtime.config.enabled,
+            poll_secs: state.observation_runtime.config.poll_secs,
+            max_ms: state.observation_runtime.config.max_ms,
+            history_limit: state.observation_runtime.config.history_limit,
+            source: state.observation_runtime.config.source.clone(),
+            query: state.observation_runtime.config.query.clone(),
+            write_approval_configured: state.observation_runtime.config.approval_token.is_some(),
+            no_supporting_path_threshold: state
+                .observation_runtime
+                .config
+                .anomaly_policy
+                .no_supporting_path_threshold,
+            contradiction_threshold: state
+                .observation_runtime
+                .config
+                .anomaly_policy
+                .contradiction_threshold,
+            stored_cycles: history.len(),
+        }
+    };
+
+    let recent_cycles = {
+        let history = state.observation_runtime.history.lock().map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": "failed to acquire observation runtime lock",
+                        "type": "internal_error"
+                    }
+                })),
+            )
+        })?;
+        history.iter().rev().cloned().collect::<Vec<_>>()
+    };
+
+    Ok(Json(AdminObservationResponse {
+        scheduler,
+        recent_cycles,
+    }))
+}
+
 fn require_admin_token(
     headers: &HeaderMap,
 ) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
@@ -628,7 +953,7 @@ fn require_admin_token(
 
 async fn chat_completion_handler(
     headers: HeaderMap,
-    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<ChatCompletionRequest>,
 ) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
     let _ = headers.get("authorization");
@@ -642,6 +967,7 @@ async fn chat_completion_handler(
         .map(|message| extract_message_text(&message.content))
         .unwrap_or_default();
 
+    let agent = &state.agent;
     let mut agent = agent.lock().unwrap();
     let answer = agent.query(&user_message);
 
@@ -870,4 +1196,431 @@ fn render_visualization_latex(answer: &str) -> String {
     } else {
         latex_lines.join("\n")
     }
+}
+
+fn play_scheduler_config_from_env() -> PlaySchedulerConfig {
+    let enabled = env_bool("CSIF_PLAY_ENABLED", false);
+    let poll_secs = std::env::var("CSIF_PLAY_POLL_SECS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(30)
+        .max(1);
+    let max_cycles_per_tick = std::env::var("CSIF_PLAY_MAX_CYCLES_PER_TICK")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(2)
+        .clamp(1, 32);
+    let history_limit = std::env::var("CSIF_PLAY_HISTORY_LIMIT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(100)
+        .clamp(1, 1000);
+    let max_ms = std::env::var("CSIF_PLAY_MAX_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(200)
+        .max(1);
+    let approval_token = std::env::var("CSIF_PLAY_APPROVAL_TOKEN")
+        .ok()
+        .filter(|value| !value.is_empty());
+
+    PlaySchedulerConfig {
+        enabled,
+        poll_secs,
+        max_cycles_per_tick,
+        max_ms,
+        history_limit,
+        approval_token,
+    }
+}
+
+fn observation_scheduler_config_from_env() -> ObservationSchedulerConfig {
+    let enabled = env_bool("CSIF_OBSERVE_ENABLED", false);
+    let poll_secs = std::env::var("CSIF_OBSERVE_POLL_SECS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(3600)
+        .max(1);
+    let max_ms = std::env::var("CSIF_OBSERVE_MAX_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(250)
+        .max(1);
+    let history_limit = std::env::var("CSIF_OBSERVE_HISTORY_LIMIT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(100)
+        .clamp(1, 1000);
+    let source = std::env::var("CSIF_OBSERVE_SOURCE")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "internal:observation".to_string());
+    let query = std::env::var("CSIF_OBSERVE_QUERY")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "Is a whale a reptile?".to_string());
+    let approval_token = std::env::var("CSIF_OBSERVE_APPROVAL_TOKEN")
+        .ok()
+        .filter(|value| !value.is_empty());
+    let anomaly_policy = ObservationAnomalyPolicy {
+        no_supporting_path_threshold: std::env::var("CSIF_OBSERVE_NO_PATH_THRESHOLD")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1),
+        contradiction_threshold: std::env::var("CSIF_OBSERVE_CONTRADICTION_THRESHOLD")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1),
+    };
+
+    ObservationSchedulerConfig {
+        enabled,
+        poll_secs,
+        max_ms,
+        history_limit,
+        source,
+        query,
+        approval_token,
+        anomaly_policy,
+    }
+}
+
+fn spawn_play_scheduler(state: Arc<AppState>) {
+    if !state.play_runtime.config.enabled {
+        return;
+    }
+
+    let poll_secs = state.play_runtime.config.poll_secs;
+    let state_for_task = Arc::clone(&state);
+
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(Duration::from_secs(poll_secs));
+        loop {
+            ticker.tick().await;
+            let record = run_bounded_play_tick(&state_for_task);
+            if let Some(record) = record {
+                push_play_history(&state_for_task, record);
+            }
+        }
+    });
+}
+
+fn spawn_observation_scheduler(state: Arc<AppState>) {
+    if !state.observation_runtime.config.enabled {
+        return;
+    }
+
+    let poll_secs = state.observation_runtime.config.poll_secs;
+    let state_for_task = Arc::clone(&state);
+
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(Duration::from_secs(poll_secs));
+        loop {
+            ticker.tick().await;
+            let record = run_observation_tick(&state_for_task);
+            if let Some(record) = record {
+                push_observation_history(&state_for_task, record);
+            }
+        }
+    });
+}
+
+fn run_bounded_play_tick(state: &AppState) -> Option<PlayCycleRecord> {
+    let started_at = Utc::now();
+    let tick_started = std::time::Instant::now();
+    let mut attempts = Vec::new();
+    let mut audit_events = Vec::new();
+    let mut cycles_run = 0usize;
+    let max_cycles_per_tick = state.play_runtime.config.max_cycles_per_tick;
+    let max_ms = state.play_runtime.config.max_ms;
+    let writes_enabled = state.play_runtime.config.approval_token.is_some();
+
+    for _ in 0..max_cycles_per_tick {
+        if tick_started.elapsed().as_millis() >= max_ms as u128 {
+            break;
+        }
+
+        let (mut cycle_attempts, anti_lobe_bank_path) = {
+            let mut guard = match state.agent.lock() {
+                Ok(guard) => guard,
+                Err(_) => return None,
+            };
+            let anti_lobe_bank_path = guard.anti_lobe_bank_path.display().to_string();
+            let cycle_attempts = if writes_enabled {
+                guard.run_play_cycle()
+            } else {
+                guard.preview_play_cycle()
+            };
+            (cycle_attempts, Some(anti_lobe_bank_path))
+        };
+
+        if cycle_attempts.is_empty() {
+            break;
+        }
+
+        if !writes_enabled {
+            for attempt in &mut cycle_attempts {
+                if matches!(
+                    attempt.outcome,
+                    PlayAttemptOutcome::SuccessCrystallized | PlayAttemptOutcome::FailurePersisted
+                ) {
+                    attempt.detail = format!(
+                        "{} (write skipped: missing CSIF_PLAY_APPROVAL_TOKEN)",
+                        attempt.detail
+                    );
+                }
+            }
+        }
+
+        for attempt in &cycle_attempts {
+            let query = play_query_for_attempt(attempt);
+            let stop_reason = play_stop_reason_for_attempt(attempt.outcome.clone());
+            let context = current_request_time_context_with_initiator("system:play");
+            let route_audit = RouteAuditTrail {
+                relation: Some(attempt.relation.clone()),
+                subject: Some(attempt.subject.clone()),
+                object: Some(attempt.object.clone()),
+                tried: attempt.basis.clone(),
+                stop_reason: stop_reason.clone(),
+                negative_evidence: vec![attempt.detail.clone()],
+                anti_lobe_bank_path: match attempt.outcome {
+                    PlayAttemptOutcome::SkippedKnownFailure | PlayAttemptOutcome::FailurePersisted => {
+                        anti_lobe_bank_path.clone()
+                    }
+                    _ => None,
+                },
+            };
+            let taught = writes_enabled
+                && matches!(
+                    attempt.outcome,
+                    PlayAttemptOutcome::SuccessCrystallized | PlayAttemptOutcome::FailurePersisted
+                );
+            let event = LoopAuditRecord {
+                timestamp: context.request_received_at.clone(),
+                initiator: "system:play".to_string(),
+                query,
+                route_audit,
+                stop_reason,
+                request_time_context: context,
+                taught,
+                source: Some("internal:play".to_string()),
+                anomaly_classification: None,
+                anomaly_score: None,
+            };
+            append_loop_audit_event(&event);
+            audit_events.push(event);
+        }
+
+        let made_progress = cycle_attempts.iter().any(|attempt| {
+            matches!(
+                attempt.outcome,
+                PlayAttemptOutcome::SuccessCrystallized | PlayAttemptOutcome::FailurePersisted
+            )
+        });
+
+        attempts.extend(cycle_attempts);
+        cycles_run += 1;
+
+        if !made_progress {
+            break;
+        }
+    }
+
+    if attempts.is_empty() && audit_events.is_empty() {
+        return None;
+    }
+
+    let mut success_crystallized = 0usize;
+    let mut failure_persisted = 0usize;
+    let mut suppressed_failures = 0usize;
+    for attempt in &attempts {
+        match attempt.outcome {
+            PlayAttemptOutcome::SuccessCrystallized => success_crystallized += 1,
+            PlayAttemptOutcome::FailurePersisted => failure_persisted += 1,
+            PlayAttemptOutcome::SkippedKnownFailure => suppressed_failures += 1,
+            PlayAttemptOutcome::SkippedKnownSuccess => {}
+        }
+    }
+
+    Some(PlayCycleRecord {
+        started_at: started_at.to_rfc3339(),
+        completed_at: Utc::now().to_rfc3339(),
+        cycles_run,
+        attempts,
+        audit_events,
+        success_crystallized,
+        failure_persisted,
+        suppressed_failures,
+    })
+}
+
+fn run_observation_tick(state: &AppState) -> Option<ObservationCycleRecord> {
+    let started_at = Utc::now();
+    let tick_started = std::time::Instant::now();
+    let max_ms = state.observation_runtime.config.max_ms;
+    if tick_started.elapsed().as_millis() >= max_ms as u128 {
+        return None;
+    }
+
+    let source = state.observation_runtime.config.source.clone();
+    let query = state.observation_runtime.config.query.clone();
+
+    let result = {
+        let mut guard = match state.agent.lock() {
+            Ok(guard) => guard,
+            Err(_) => return None,
+        };
+        guard.query_with_certificate(&query)
+    };
+
+    let mut context = result
+        .request_time_context
+        .unwrap_or_else(|| current_request_time_context_with_initiator("system:observation"));
+    context.initiator = "system:observation".to_string();
+
+    let route_audit = result.route_audit.unwrap_or(RouteAuditTrail {
+        relation: None,
+        subject: None,
+        object: None,
+        tried: Vec::new(),
+        stop_reason: "no_route_audit_available".to_string(),
+        negative_evidence: vec!["Query completed without relation route audit.".to_string()],
+        anti_lobe_bank_path: None,
+    });
+    let stop_reason = route_audit.stop_reason.clone();
+    let anomaly = classify_observation_anomaly(
+        &route_audit,
+        &state.observation_runtime.config.anomaly_policy,
+    );
+    let event = LoopAuditRecord {
+        timestamp: context.request_received_at.clone(),
+        initiator: "system:observation".to_string(),
+        query,
+        route_audit,
+        stop_reason,
+        request_time_context: context,
+        taught: false,
+        source: Some(source),
+        anomaly_classification: anomaly.as_ref().map(|result| result.classification.clone()),
+        anomaly_score: anomaly.as_ref().map(|result| result.score),
+    };
+    append_loop_audit_event(&event);
+
+    Some(ObservationCycleRecord {
+        started_at: started_at.to_rfc3339(),
+        completed_at: Utc::now().to_rfc3339(),
+        observations_run: 1,
+        anomalies_detected: usize::from(anomaly.is_some()),
+        audit_events: vec![event],
+    })
+}
+
+#[derive(Debug, Clone)]
+struct ObservationAnomalyResult {
+    classification: String,
+    score: usize,
+}
+
+fn classify_observation_anomaly(
+    route_audit: &RouteAuditTrail,
+    policy: &ObservationAnomalyPolicy,
+) -> Option<ObservationAnomalyResult> {
+    let score = route_audit.negative_evidence.len().max(1);
+    if route_audit.stop_reason.contains("contradiction") && score >= policy.contradiction_threshold {
+        return Some(ObservationAnomalyResult {
+            classification: "contradiction".to_string(),
+            score,
+        });
+    }
+    if route_audit.stop_reason.contains("no_supporting_path")
+        && score >= policy.no_supporting_path_threshold
+    {
+        return Some(ObservationAnomalyResult {
+            classification: "no_supporting_path".to_string(),
+            score,
+        });
+    }
+    None
+}
+
+fn push_play_history(state: &AppState, record: PlayCycleRecord) {
+    if let Ok(mut history) = state.play_runtime.history.lock() {
+        history.push_back(record);
+        while history.len() > state.play_runtime.config.history_limit {
+            history.pop_front();
+        }
+    }
+}
+
+fn push_observation_history(state: &AppState, record: ObservationCycleRecord) {
+    if let Ok(mut history) = state.observation_runtime.history.lock() {
+        history.push_back(record);
+        while history.len() > state.observation_runtime.config.history_limit {
+            history.pop_front();
+        }
+    }
+}
+
+fn play_query_for_attempt(attempt: &PlayAttempt) -> String {
+    match attempt.relation.as_str() {
+        "is_a" => format!("Is a {} a {}?", attempt.subject, attempt.object),
+        "causes" => format!("Does {} cause {}?", attempt.subject, attempt.object),
+        "has_property" => format!("Does a {} have {}?", attempt.subject, attempt.object),
+        _ => format!("Does {} {} {}?", attempt.subject, attempt.relation, attempt.object),
+    }
+}
+
+fn play_stop_reason_for_attempt(outcome: PlayAttemptOutcome) -> String {
+    match outcome {
+        PlayAttemptOutcome::SuccessCrystallized => "success".to_string(),
+        PlayAttemptOutcome::FailurePersisted => "no_supporting_path".to_string(),
+        PlayAttemptOutcome::SkippedKnownFailure => "anti_lobe_negative_match".to_string(),
+        PlayAttemptOutcome::SkippedKnownSuccess => "success_already_known".to_string(),
+    }
+}
+
+fn append_loop_audit_event(event: &LoopAuditRecord) {
+    let payload = match serde_json::to_string(event) {
+        Ok(value) => value,
+        Err(err) => {
+            eprintln!("loop-audit serialization failed: {err}");
+            return;
+        }
+    };
+
+    if let Ok(path_value) = std::env::var("CSIF_LOOP_AUDIT_LOG_PATH") {
+        let path = Path::new(&path_value);
+        if let Some(parent) = path.parent() {
+            if let Err(err) = fs::create_dir_all(parent) {
+                eprintln!("loop-audit mkdir failed: {err}");
+                return;
+            }
+        }
+        match OpenOptions::new().create(true).append(true).open(path) {
+            Ok(mut file) => {
+                if let Err(err) = writeln!(file, "{payload}") {
+                    eprintln!("loop-audit write failed: {err}");
+                }
+            }
+            Err(err) => eprintln!("loop-audit open failed: {err}"),
+        }
+    } else {
+        eprintln!("loop-audit {payload}");
+    }
+}
+
+fn env_bool(name: &str, default: bool) -> bool {
+    std::env::var(name)
+        .ok()
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(default)
+}
+
+fn parse_force_flag(value: Option<&str>) -> bool {
+    matches!(
+        value.map(|flag| flag.trim()),
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
+    )
 }
