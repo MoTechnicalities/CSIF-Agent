@@ -19,7 +19,8 @@ use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use crate::agent::{
     evaluate_instruction_execution, verify_proof_certificate, CSIFAgent,
-    InstructionExecutionDecision, ProofCertificate,
+    CompositeQuerySummary, ExplainResultPayload, InstructionExecutionDecision, ProofCertificate,
+    QueryClauseResult, RequestTimeContext, RouteAuditTrail,
 };
 use crate::metadata::AppliedLobe;
 use tokio_stream::iter;
@@ -29,11 +30,38 @@ struct QueryRequest {
     text: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ExplainRequest {
+    text: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct VisualizeRequest {
+    text: String,
+    #[serde(default)]
+    format: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct QueryResponse {
     answer: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     certificate: Option<ProofCertificate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clauses: Option<Vec<QueryClauseResult>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    composite: Option<CompositeQuerySummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    request_time_context: Option<RequestTimeContext>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    route_audit: Option<RouteAuditTrail>,
+}
+
+#[derive(Debug, Serialize)]
+struct VisualizeResponse {
+    format: String,
+    mime_type: String,
+    content: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -206,10 +234,12 @@ struct ModelPermission {
 
 static CHAT_COMPLETION_COUNTER: AtomicU64 = AtomicU64::new(1);
 
-pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
-    let app = Router::new()
+pub fn build_app(agent: Arc<Mutex<CSIFAgent>>) -> Router {
+    Router::new()
         .route("/health", get(health_handler))
         .route("/query", post(query_handler))
+        .route("/explain", post(explain_handler))
+        .route("/visualize", post(visualize_handler))
         .route("/teach", post(teach_handler))
         .route("/verify-proof", post(verify_proof_handler))
         .route("/execute-plan", post(execute_plan_handler))
@@ -219,7 +249,11 @@ pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
         .route("/v1/chat/completions", post(chat_completion_handler))
         .route("/v1/models", get(models_handler))
         .route("/v1/models/:model_id", get(model_handler))
-        .with_state(agent);
+        .with_state(agent)
+}
+
+pub async fn start_server(agent: Arc<Mutex<CSIFAgent>>, port: u16) {
+    let app = build_app(agent);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
@@ -237,6 +271,10 @@ async fn query_handler(
     Json(QueryResponse {
         answer: result.answer,
         certificate: result.certificate,
+        clauses: result.clauses,
+        composite: result.composite,
+        request_time_context: result.request_time_context,
+        route_audit: result.route_audit,
     })
 }
 
@@ -249,6 +287,55 @@ async fn teach_handler(
     Json(QueryResponse {
         answer,
         certificate: None,
+        clauses: None,
+        composite: None,
+        request_time_context: None,
+        route_audit: None,
+    })
+}
+
+async fn explain_handler(
+    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    Json(req): Json<ExplainRequest>,
+) -> Json<ExplainResultPayload> {
+    let agent = agent.lock().unwrap();
+    Json(agent.explain_query(&req.text))
+}
+
+async fn visualize_handler(
+    State(agent): State<Arc<Mutex<CSIFAgent>>>,
+    Json(req): Json<VisualizeRequest>,
+) -> Json<VisualizeResponse> {
+    let format = req
+        .format
+        .as_deref()
+        .unwrap_or("dot")
+        .trim()
+        .to_lowercase();
+
+    let mut agent = agent.lock().unwrap();
+    let explain = agent.explain_query(&req.text);
+    let query = agent.query_with_certificate(&req.text);
+
+    let (mime_type, content) = match format.as_str() {
+        "tree" => (
+            "text/plain".to_string(),
+            render_visualization_tree(&req.text, &explain, &query.answer),
+        ),
+        "latex" => (
+            "text/plain".to_string(),
+            render_visualization_latex(&query.answer),
+        ),
+        _ => (
+            "text/vnd.graphviz".to_string(),
+            render_visualization_dot(&req.text, &explain),
+        ),
+    };
+
+    Json(VisualizeResponse {
+        format,
+        mime_type,
+        content,
     })
 }
 
@@ -699,5 +786,88 @@ fn extract_message_text(content: &ChatMessageContent) -> String {
             .filter_map(|part| part.text.clone())
             .collect::<Vec<_>>()
             .join("\n"),
+    }
+}
+
+fn render_visualization_dot(input: &str, explain: &ExplainResultPayload) -> String {
+    let mut lines = vec![
+        "digraph csif_proof {".to_string(),
+        "  rankdir=LR;".to_string(),
+        "  node [shape=box, style=rounded];".to_string(),
+        format!("  query [label=\"query: {}\"];", input.replace('"', "\\\"")),
+    ];
+
+    if explain.path.is_empty() {
+        lines.push("  result [label=\"no relation path\"];".to_string());
+        lines.push("  query -> result [label=\"unresolved\"];".to_string());
+    } else {
+        for (idx, node) in explain.path.iter().enumerate() {
+            lines.push(format!(
+                "  n{} [label=\"{}\"];",
+                idx,
+                node.replace('"', "\\\"")
+            ));
+            if idx == 0 {
+                lines.push("  query -> n0 [label=\"start\"];".to_string());
+            }
+        }
+        let relation = explain.relation.as_deref().unwrap_or("related_to");
+        for idx in 0..explain.path.len().saturating_sub(1) {
+            lines.push(format!("  n{} -> n{} [label=\"{}\"];", idx, idx + 1, relation));
+        }
+    }
+
+    lines.push("}".to_string());
+    lines.join("\n")
+}
+
+fn render_visualization_tree(input: &str, explain: &ExplainResultPayload, answer: &str) -> String {
+    let mut lines = vec![
+        "Proof Tree".to_string(),
+        format!("- query: {}", input),
+        format!("- intent: {}", explain.intent),
+        format!("- answer: {}", answer),
+    ];
+
+    if let Some(relation) = &explain.relation {
+        lines.push(format!("- relation: {}", relation));
+    }
+    if let Some(limit) = explain.depth_limit {
+        lines.push(format!("- depth_limit: {}", limit));
+    }
+    if let Some(confidence) = explain.confidence {
+        lines.push(format!("- confidence: {:.3}", confidence));
+    }
+
+    lines.push("- path:".to_string());
+    if explain.path.is_empty() {
+        lines.push("  - (none)".to_string());
+    } else {
+        for node in &explain.path {
+            lines.push(format!("  - {}", node));
+        }
+    }
+
+    lines.push("- contradiction_review:".to_string());
+    for note in &explain.considered_contradictions {
+        lines.push(format!("  - {}", note));
+    }
+
+    lines.join("\n")
+}
+
+fn render_visualization_latex(answer: &str) -> String {
+    let latex_lines = answer
+        .lines()
+        .filter(|line| line.trim_start().starts_with("$$"))
+        .collect::<Vec<_>>();
+
+    if latex_lines.is_empty() {
+        format!(
+            "\\text{{No LaTeX scaffold in answer.}}\\\\\\n\\text{{Answer: {}}}",
+            answer.replace('{', "\\{").replace('}', "\\}")
+        )
+    } else {
+        latex_lines.join("\n")
     }
 }

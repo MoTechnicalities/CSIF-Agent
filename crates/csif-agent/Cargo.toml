@@ -25,3 +25,6 @@ toml = "0.8"
 tokio-stream = "0.1"
 semver = "1"
 sha2 = "0.10"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
