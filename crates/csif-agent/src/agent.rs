@@ -17,6 +17,7 @@ use sha2::{Digest, Sha256};
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
+use std::f64::consts::PI;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -53,6 +54,76 @@ pub struct QueryResultPayload {
     pub answer: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub certificate: Option<ProofCertificate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clauses: Option<Vec<QueryClauseResult>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub composite: Option<CompositeQuerySummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_time_context: Option<RequestTimeContext>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route_audit: Option<RouteAuditTrail>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryClauseResult {
+    pub input: String,
+    pub answer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub certificate: Option<ProofCertificate>,
+    pub semantic_projection: SemanticProjection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route_audit: Option<RouteAuditTrail>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompositeQuerySummary {
+    pub clause_count: usize,
+    pub clauses_with_certificates: usize,
+    pub verified_certificates: usize,
+    pub all_clause_certificates_verified: bool,
+    pub intents: Vec<String>,
+    pub meaning_vocabulary: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SemanticProjection {
+    pub intent: String,
+    pub meaning_tokens: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExplainResultPayload {
+    pub input: String,
+    pub answer: String,
+    pub intent: String,
+    pub relation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub depth_limit: Option<usize>,
+    pub path: Vec<String>,
+    pub considered_contradictions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_time_context: Option<RequestTimeContext>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route_audit: Option<RouteAuditTrail>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequestTimeContext {
+    pub request_received_at: String,
+    pub unix_ms: i64,
+    pub timezone: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteAuditTrail {
+    pub relation: Option<String>,
+    pub subject: Option<String>,
+    pub object: Option<String>,
+    pub tried: Vec<String>,
+    pub stop_reason: String,
+    pub negative_evidence: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -230,6 +301,21 @@ struct LobeBundle {
     manifest: LobeManifest,
 }
 
+#[derive(Debug, Clone)]
+struct RelationInferenceTrace {
+    tried: Vec<String>,
+    stop_reason: String,
+}
+
+fn current_request_time_context() -> RequestTimeContext {
+    let now = Utc::now();
+    RequestTimeContext {
+        request_received_at: now.to_rfc3339(),
+        unix_ms: now.timestamp_millis(),
+        timezone: "UTC".to_string(),
+    }
+}
+
 impl CSIFAgent {
     /// Load existing crystal bank or create new one
     pub fn load_or_create(bank_path: &Path) -> Result<Self, Box<dyn Error>> {
@@ -300,13 +386,15 @@ impl CSIFAgent {
             .filter(|value| *value > 0)
             .unwrap_or(1);
 
+        let relation_registry = grammar.relation_registry();
+
         let mut agent = CSIFAgent {
             cache: QueryCache::new(),
             index,
             crystal,
             bank_path: bank_path.to_path_buf(),
             grammar,
-            relation_registry: RelationRegistry::default(),
+            relation_registry,
             index_dirty: false,
             save_every,
             pending_saves: 0,
@@ -334,11 +422,216 @@ impl CSIFAgent {
         self.query_with_certificate(input).answer
     }
 
+    pub fn explain_query(&self, input: &str) -> ExplainResultPayload {
+        if let Some(intent) = self.grammar.parse_query(input) {
+            match &intent {
+                QueryIntent::ConfirmRelation {
+                    relation,
+                    subject,
+                    object,
+                } => {
+                    let route_audit = Some(self.route_audit_for_relation(relation, subject, object));
+                    let relation_type = RelationType::from_str(relation.as_str());
+                    let path = relation_type
+                        .and_then(|rel| self.infer_relation_path(subject, object, rel))
+                        .unwrap_or_default();
+                    let confidence = relation_type
+                        .and_then(|rel| self.path_confidence(&path, rel))
+                        .or_else(|| Some(if path.is_empty() { 0.0 } else { 1.0 }));
+                    let depth_limit = relation_type
+                        .and_then(|rel| self.relation_registry.spec_by_type(rel))
+                        .and_then(|spec| spec.max_depth);
+
+                    let considered_contradictions = if path.is_empty() {
+                        vec![
+                            "No supporting path found under current relation/depth policy.".to_string(),
+                        ]
+                    } else {
+                        self.describe_path_contradictions(&path)
+                    };
+
+                    let answer = self
+                        .answer_from_crystal(&intent)
+                        .map(|resolution| format!("[CRYSTAL] {}", resolution.answer))
+                        .unwrap_or_else(|| {
+                            "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
+                        });
+
+                    ExplainResultPayload {
+                        input: input.to_string(),
+                        answer,
+                        intent: "confirm_relation".to_string(),
+                        relation: Some(relation.clone()),
+                        depth_limit,
+                        path,
+                        considered_contradictions,
+                        confidence,
+                        request_time_context: Some(current_request_time_context()),
+                        route_audit,
+                    }
+                }
+                QueryIntent::Describe { .. } => {
+                    let answer = self
+                        .answer_from_crystal(&intent)
+                        .map(|resolution| format!("[CRYSTAL] {}", resolution.answer))
+                        .unwrap_or_else(|| {
+                            "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
+                        });
+                    ExplainResultPayload {
+                        input: input.to_string(),
+                        answer,
+                        intent: "describe_entity".to_string(),
+                        relation: None,
+                        depth_limit: None,
+                        path: Vec::new(),
+                        considered_contradictions: vec![
+                            "No transitive relation path was required for describe intent.".to_string(),
+                        ],
+                        confidence: None,
+                        request_time_context: Some(current_request_time_context()),
+                        route_audit: None,
+                    }
+                }
+                QueryIntent::ComputeExpression { .. } => {
+                    let answer = self
+                        .answer_from_crystal(&intent)
+                        .map(|resolution| format!("[CRYSTAL] {}", resolution.answer))
+                        .unwrap_or_else(|| {
+                            "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
+                        });
+                    ExplainResultPayload {
+                        input: input.to_string(),
+                        answer,
+                        intent: "compute_expression".to_string(),
+                        relation: None,
+                        depth_limit: None,
+                        path: Vec::new(),
+                        considered_contradictions: vec![
+                            "Compute intent is arithmetic; no graph contradiction path was evaluated.".to_string(),
+                        ],
+                        confidence: Some(1.0),
+                        request_time_context: Some(current_request_time_context()),
+                        route_audit: None,
+                    }
+                }
+                QueryIntent::SolveEquation { .. } => {
+                    let answer = self
+                        .answer_from_crystal(&intent)
+                        .map(|resolution| format!("[CRYSTAL] {}", resolution.answer))
+                        .unwrap_or_else(|| {
+                            "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string()
+                        });
+                    ExplainResultPayload {
+                        input: input.to_string(),
+                        answer,
+                        intent: "solve_equation".to_string(),
+                        relation: None,
+                        depth_limit: None,
+                        path: Vec::new(),
+                        considered_contradictions: vec![
+                            "Solve intent uses symbolic math proof, not graph contradiction checks.".to_string(),
+                        ],
+                        confidence: Some(1.0),
+                        request_time_context: Some(current_request_time_context()),
+                        route_audit: None,
+                    }
+                }
+            }
+        } else {
+            ExplainResultPayload {
+                input: input.to_string(),
+                answer: "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string(),
+                intent: "unknown".to_string(),
+                relation: None,
+                depth_limit: None,
+                path: Vec::new(),
+                considered_contradictions: vec![
+                    "Unable to parse input into a supported query intent.".to_string(),
+                ],
+                confidence: None,
+                request_time_context: Some(current_request_time_context()),
+                route_audit: None,
+            }
+        }
+    }
+
     pub fn query_with_certificate(&mut self, input: &str) -> QueryResultPayload {
         if self.index_dirty {
             self.index.index_crystal(&self.crystal);
             self.index_dirty = false;
         }
+
+        let clauses = split_compound_query(input);
+        if clauses.len() > 1 {
+            let clause_results = clauses
+                .into_iter()
+                .map(|clause| {
+                    let result = self.query_single_with_certificate(&clause);
+                    let semantic_projection =
+                        semantic_projection_for_clause(&clause, &result.answer, result.certificate.as_ref());
+                    QueryClauseResult {
+                        input: clause,
+                        answer: result.answer,
+                        certificate: result.certificate,
+                        semantic_projection,
+                        route_audit: result.route_audit,
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let answer = clause_results
+                .iter()
+                .map(|entry| entry.answer.clone())
+                .collect::<Vec<_>>()
+                .join("\n");
+            let clause_count = clause_results.len();
+
+            let clauses_with_certificates = clause_results
+                .iter()
+                .filter(|entry| entry.certificate.is_some())
+                .count();
+            let verified_certificates = clause_results
+                .iter()
+                .filter_map(|entry| entry.certificate.as_ref())
+                .filter(|certificate| verify_proof_certificate(certificate))
+                .count();
+            let all_clause_certificates_verified = clauses_with_certificates > 0
+                && clauses_with_certificates == verified_certificates;
+            let mut intents = clause_results
+                .iter()
+                .map(|entry| entry.semantic_projection.intent.clone())
+                .collect::<Vec<_>>();
+            intents.sort();
+            intents.dedup();
+
+            let mut meaning_vocabulary = clause_results
+                .iter()
+                .flat_map(|entry| entry.semantic_projection.meaning_tokens.clone())
+                .collect::<Vec<_>>();
+            meaning_vocabulary.sort();
+            meaning_vocabulary.dedup();
+
+            return QueryResultPayload {
+                answer,
+                certificate: None,
+                clauses: Some(clause_results),
+                composite: Some(CompositeQuerySummary {
+                    clause_count,
+                    clauses_with_certificates,
+                    verified_certificates,
+                    all_clause_certificates_verified,
+                    intents,
+                    meaning_vocabulary,
+                }),
+                request_time_context: Some(current_request_time_context()),
+                route_audit: None,
+            };
+        }
+
+        self.query_single_with_certificate(input)
+    }
+
+    fn query_single_with_certificate(&mut self, input: &str) -> QueryResultPayload {
 
         let Some(intent) = self.grammar.parse_query(input) else {
             if let Some(certificate) = build_fallback_language_certificate(input) {
@@ -350,12 +643,29 @@ impl CSIFAgent {
                 return QueryResultPayload {
                     answer,
                     certificate: Some(ProofCertificate::Language(certificate)),
+                    clauses: None,
+                    composite: None,
+                    request_time_context: Some(current_request_time_context()),
+                    route_audit: None,
                 };
             }
             return QueryResultPayload {
                 answer: "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string(),
                 certificate: None,
+                clauses: None,
+                composite: None,
+                request_time_context: Some(current_request_time_context()),
+                route_audit: None,
             };
+        };
+
+        let route_audit = match &intent {
+            QueryIntent::ConfirmRelation {
+                relation,
+                subject,
+                object,
+            } => Some(self.route_audit_for_relation(relation, subject, object)),
+            _ => None,
         };
 
         if let Some(resolution) = self.answer_from_crystal(&intent) {
@@ -372,6 +682,10 @@ impl CSIFAgent {
             return QueryResultPayload {
                 answer: format!("[CRYSTAL] {}", resolution.answer),
                 certificate: resolution.certificate,
+                clauses: None,
+                composite: None,
+                request_time_context: Some(current_request_time_context()),
+                route_audit: route_audit.clone(),
             };
         }
 
@@ -379,6 +693,10 @@ impl CSIFAgent {
             return QueryResultPayload {
                 answer: "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string(),
                 certificate: None,
+                clauses: None,
+                composite: None,
+                request_time_context: Some(current_request_time_context()),
+                route_audit: route_audit.clone(),
             };
         }
 
@@ -398,10 +716,18 @@ impl CSIFAgent {
             PreflightResult::ShortCircuit(response) => QueryResultPayload {
                 answer: format!("[CACHE] {}", response.response),
                 certificate: None,
+                clauses: None,
+                composite: None,
+                request_time_context: Some(current_request_time_context()),
+                route_audit: route_audit.clone(),
             },
             PreflightResult::CacheMiss | PreflightResult::NeedsDeepValidation => QueryResultPayload {
                 answer: "[NEEDS_INPUT] I don't have that knowledge yet. Please teach me.".to_string(),
                 certificate: None,
+                clauses: None,
+                composite: None,
+                request_time_context: Some(current_request_time_context()),
+                route_audit,
             },
         }
     }
@@ -1042,29 +1368,70 @@ impl CSIFAgent {
         self.infer_relation_path(subject, object, relation).is_some()
     }
 
-    fn infer_relation_path(&self, subject: &str, object: &str, relation: RelationType) -> Option<Vec<String>> {
+    fn infer_relation_path_with_trace(
+        &self,
+        subject: &str,
+        object: &str,
+        relation: RelationType,
+    ) -> (Option<Vec<String>>, RelationInferenceTrace) {
         let Some(spec) = self.relation_registry.spec_by_type(relation) else {
-            return None;
+            return (
+                None,
+                RelationInferenceTrace {
+                    tried: Vec::new(),
+                    stop_reason: "relation_not_registered".to_string(),
+                },
+            );
         };
 
         if !spec.transitive {
-            return self
-                .direct_targets_for_relation(subject, relation)
+            let direct_targets = self.direct_targets_for_relation(subject, relation);
+            let mut tried = direct_targets
+                .iter()
+                .map(|target| format!("{} -{}-> {}", subject, relation.as_str(), target))
+                .collect::<Vec<_>>();
+            tried.sort();
+            tried.dedup();
+            let path = direct_targets
                 .iter()
                 .any(|target| target == object)
                 .then(|| vec![subject.to_string(), object.to_string()]);
+            let stop_reason = if path.is_some() {
+                "direct_match_found"
+            } else {
+                "direct_no_match"
+            }
+            .to_string();
+            return (path, RelationInferenceTrace { tried, stop_reason });
         }
+
+        let max_depth = spec.max_depth;
 
         let mut visited = HashSet::new();
         let mut previous = HashMap::<String, String>::new();
-        let mut queue = VecDeque::from([subject.to_string()]);
+        let mut queue = VecDeque::from([(subject.to_string(), 0usize)]);
+        let mut tried = Vec::new();
+        let mut depth_limited = false;
 
-        while let Some(current) = queue.pop_front() {
+        while let Some((current, depth)) = queue.pop_front() {
             if !visited.insert(current.clone()) {
                 continue;
             }
 
+            if max_depth.is_some_and(|limit| depth >= limit) {
+                depth_limited = true;
+                continue;
+            }
+
             for next in self.direct_targets_for_relation(&current, relation) {
+                tried.push(format!(
+                    "{} -{}-> {} (depth {})",
+                    current,
+                    relation.as_str(),
+                    next,
+                    depth + 1
+                ));
+
                 if next == object {
                     previous.insert(next.clone(), current.clone());
                     let mut path = vec![object.to_string()];
@@ -1077,16 +1444,192 @@ impl CSIFAgent {
                         cursor = prev;
                     }
                     path.reverse();
-                    return Some(path);
+                    return (
+                        Some(path),
+                        RelationInferenceTrace {
+                            tried,
+                            stop_reason: "path_found".to_string(),
+                        },
+                    );
                 }
                 if !visited.contains(&next) {
                     previous.entry(next.clone()).or_insert_with(|| current.clone());
-                    queue.push_back(next);
+                    queue.push_back((next, depth + 1));
                 }
             }
         }
 
-        None
+        let stop_reason = if depth_limited {
+            match max_depth {
+                Some(limit) => format!("stopped_at_depth_limit:{}", limit),
+                None => "stopped_at_depth_limit".to_string(),
+            }
+        } else {
+            "no_supporting_path".to_string()
+        };
+
+        (None, RelationInferenceTrace { tried, stop_reason })
+    }
+
+    fn infer_relation_path(&self, subject: &str, object: &str, relation: RelationType) -> Option<Vec<String>> {
+        self.infer_relation_path_with_trace(subject, object, relation).0
+    }
+
+    fn negative_evidence_for_relation(
+        &self,
+        subject: &str,
+        object: &str,
+        relation: RelationType,
+    ) -> Vec<String> {
+        let mut evidence = Vec::new();
+
+        if let Some(phase) = self.last_phase_for_edge(subject, object, relation) {
+            if phase.abs() > (PI - 0.1) {
+                evidence.push(format!(
+                    "High anti-phase edge observed on {} -{}-> {} (phase {:.3}).",
+                    subject,
+                    relation.as_str(),
+                    object,
+                    phase
+                ));
+            }
+        }
+
+        let reverse_exists = self
+            .direct_targets_for_relation(object, relation)
+            .iter()
+            .any(|target| target == subject);
+        if reverse_exists {
+            evidence.push(format!(
+                "Reverse direction exists: {} -{}-> {}.",
+                object,
+                relation.as_str(),
+                subject
+            ));
+        }
+
+        if evidence.is_empty() {
+            evidence.push(
+                "No direct anti-phase or reverse-direction evidence observed for this relation."
+                    .to_string(),
+            );
+        }
+
+        evidence
+    }
+
+    fn route_audit_for_relation(
+        &self,
+        relation: &str,
+        subject: &str,
+        object: &str,
+    ) -> RouteAuditTrail {
+        if let Some(relation_type) = RelationType::from_str(relation) {
+            let (_, trace) = self.infer_relation_path_with_trace(subject, object, relation_type);
+            RouteAuditTrail {
+                relation: Some(relation.to_string()),
+                subject: Some(subject.to_string()),
+                object: Some(object.to_string()),
+                tried: trace.tried,
+                stop_reason: trace.stop_reason,
+                negative_evidence: self.negative_evidence_for_relation(subject, object, relation_type),
+            }
+        } else {
+            RouteAuditTrail {
+                relation: Some(relation.to_string()),
+                subject: Some(subject.to_string()),
+                object: Some(object.to_string()),
+                tried: Vec::new(),
+                stop_reason: "relation_not_registered".to_string(),
+                negative_evidence: vec![
+                    "Relation is not registered for inference; no route attempts were executed."
+                        .to_string(),
+                ],
+            }
+        }
+    }
+
+    fn path_confidence(&self, path: &[String], relation: RelationType) -> Option<f64> {
+        if path.len() < 2 {
+            return None;
+        }
+
+        let mut scores = Vec::new();
+        for pair in path.windows(2) {
+            let [source, target] = pair else {
+                continue;
+            };
+            if let Some(phase) = self.last_phase_for_edge(source, target, relation) {
+                let normalized = 1.0 - (phase.abs() / PI).min(1.0);
+                scores.push(normalized.max(0.0));
+            }
+        }
+
+        if scores.is_empty() {
+            None
+        } else {
+            Some(scores.iter().sum::<f64>() / (scores.len() as f64))
+        }
+    }
+
+    fn last_phase_for_edge(&self, source: &str, target: &str, relation: RelationType) -> Option<f64> {
+        self.crystal
+            .edges
+            .values()
+            .find_map(|edge| {
+                if edge.relation != relation.as_str() {
+                    return None;
+                }
+                let source_label = node_label_by_id(&self.crystal, &edge.source)?;
+                let target_label = node_label_by_id(&self.crystal, &edge.target)?;
+                if source_label != source || target_label != target {
+                    return None;
+                }
+                edge.trajectory.last().map(|event| event.phase)
+            })
+    }
+
+    fn describe_path_contradictions(&self, path: &[String]) -> Vec<String> {
+        if path.len() < 2 {
+            return vec!["No path evidence available for contradiction review.".to_string()];
+        }
+
+        let mut messages = Vec::new();
+        for pair in path.windows(2) {
+            let [source, target] = pair else {
+                continue;
+            };
+            let high_phase = self
+                .crystal
+                .edges
+                .values()
+                .filter_map(|edge| {
+                    let source_label = node_label_by_id(&self.crystal, &edge.source)?;
+                    let target_label = node_label_by_id(&self.crystal, &edge.target)?;
+                    if source_label != source || target_label != target {
+                        return None;
+                    }
+                    edge.trajectory.last().map(|event| (edge.relation.clone(), event.phase))
+                })
+                .filter(|(_, phase)| phase.abs() > (PI - 0.1))
+                .collect::<Vec<_>>();
+
+            if high_phase.is_empty() {
+                messages.push(format!(
+                    "No high-phase contradiction observed on edge {} -> {}.",
+                    source, target
+                ));
+            } else {
+                for (relation, phase) in high_phase {
+                    messages.push(format!(
+                        "Potential contradiction on relation {} for {} -> {} (phase {:.3}).",
+                        relation, source, target, phase
+                    ));
+                }
+            }
+        }
+
+        messages
     }
 
     fn direct_targets_for_relation(&self, subject: &str, relation: RelationType) -> Vec<String> {
@@ -1582,13 +2125,14 @@ fn build_instruction_language_certificate(
     negated: bool,
     ambiguous: bool,
 ) -> LanguageCertificate {
-    let (plan_steps, safe_actions) = build_instruction_plan(action_text);
+    let action_text = normalize_instruction_action_text(action_text);
+    let (plan_steps, safe_actions) = build_instruction_plan(&action_text);
     let target = action_text
         .split_once(' ')
         .map(|(_, rest)| rest.trim().to_string())
         .filter(|value| !value.is_empty());
     let (execution_policy, dry_run_results) =
-        simulate_instruction_actions(action_text, target.as_deref(), &safe_actions);
+        simulate_instruction_actions(&action_text, target.as_deref(), &safe_actions);
     let best = SemanticFormV1 {
         version: 1,
         intent: SemanticIntent::InstructionRequest,
@@ -1601,12 +2145,16 @@ fn build_instruction_language_certificate(
             SemanticAtom {
                 primitive: SemanticPrimitive::Instruction,
                 role: Some("action".to_string()),
-                value: action_text.to_string(),
+                value: action_text.clone(),
             },
             SemanticAtom {
                 primitive: SemanticPrimitive::Action,
                 role: Some("verb".to_string()),
-                value: action_text.split_whitespace().next().unwrap_or(action_text).to_string(),
+                value: action_text
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(action_text.as_str())
+                    .to_string(),
             },
             SemanticAtom {
                 primitive: SemanticPrimitive::Negation,
@@ -1623,7 +2171,7 @@ fn build_instruction_language_certificate(
                 SemanticAtom {
                     primitive: SemanticPrimitive::Event,
                     role: Some("surface".to_string()),
-                    value: action_text.to_string(),
+                    value: action_text.clone(),
                 },
                 SemanticAtom {
                     primitive: SemanticPrimitive::Descriptor,
@@ -1660,7 +2208,7 @@ fn build_instruction_language_certificate(
             }),
         },
         replay: LanguageCertificateReplay::InstructionRequest {
-            action: action_text.to_string(),
+            action: action_text,
             target,
             negated,
             ambiguous,
@@ -1670,6 +2218,186 @@ fn build_instruction_language_certificate(
             dry_run_results,
         },
     }
+}
+
+fn normalize_instruction_action_text(action_text: &str) -> String {
+    let mut normalized = strip_leading_discourse_markers(action_text.trim())
+        .trim_end_matches(['.', '?', '!'])
+        .trim()
+        .to_string();
+
+    let mut tokens = normalized.split_whitespace().collect::<Vec<_>>();
+    while matches!(tokens.last().copied(), Some("safely" | "carefully" | "securely" | "please")) {
+        tokens.pop();
+    }
+
+    if !tokens.is_empty() {
+        normalized = tokens.join(" ");
+    }
+
+    normalized
+}
+
+fn split_compound_query(input: &str) -> Vec<String> {
+    let mut clauses = Vec::new();
+    let mut current = String::new();
+
+    for ch in input.chars() {
+        if matches!(ch, '?' | '!' | '\n') {
+            let clause = normalize_compound_clause(&current);
+            if !clause.is_empty() {
+                clauses.push(clause);
+            }
+            current.clear();
+        } else {
+            current.push(ch);
+        }
+    }
+
+    let trailing = normalize_compound_clause(&current);
+    if !trailing.is_empty() {
+        clauses.push(trailing);
+    }
+
+    if clauses.len() <= 1 {
+        return clauses;
+    }
+
+    clauses
+}
+
+fn semantic_projection_for_clause(
+    input: &str,
+    answer: &str,
+    certificate: Option<&ProofCertificate>,
+) -> SemanticProjection {
+    let normalized = normalize_compound_clause(input).to_ascii_lowercase();
+
+    if let Some(certificate) = certificate {
+        match certificate {
+            ProofCertificate::Language(language) => {
+                let (intent, mut meaning_tokens) = match &language.replay {
+                    LanguageCertificateReplay::InstructionRequest { action, target, .. } => {
+                        let mut tokens = vec![
+                            "instruction".to_string(),
+                            "plan".to_string(),
+                            "safe-actions".to_string(),
+                        ];
+                        if let Some(verb) = action.split_whitespace().next() {
+                            tokens.push(format!("verb:{verb}"));
+                        }
+                        if let Some(target) = target {
+                            tokens.push(format!("target:{}", target.replace(' ', "_")));
+                        }
+                        ("instruction_request".to_string(), tokens)
+                    }
+                    LanguageCertificateReplay::ConfirmRelation { relation, .. } => (
+                        "confirm_relation".to_string(),
+                        vec![
+                            "relation".to_string(),
+                            format!("predicate:{relation}"),
+                        ],
+                    ),
+                    LanguageCertificateReplay::DescribeEntity { subject, .. } => (
+                        "describe_entity".to_string(),
+                        vec![
+                            "describe".to_string(),
+                            format!("subject:{}", subject.replace(' ', "_")),
+                        ],
+                    ),
+                    LanguageCertificateReplay::NarrativeState { subject, state, .. } => (
+                        "narrative_state".to_string(),
+                        vec![
+                            "narrative".to_string(),
+                            format!("subject:{}", subject.replace(' ', "_")),
+                            format!("state:{}", state.replace(' ', "_")),
+                        ],
+                    ),
+                    LanguageCertificateReplay::NarrativeEvent { actor, event, .. } => (
+                        "narrative_event".to_string(),
+                        vec![
+                            "narrative".to_string(),
+                            format!("actor:{}", actor.replace(' ', "_")),
+                            format!("event:{event}"),
+                        ],
+                    ),
+                };
+                meaning_tokens.push(format!("family:{}", language.family));
+                meaning_tokens.sort();
+                meaning_tokens.dedup();
+                return SemanticProjection { intent, meaning_tokens };
+            }
+            ProofCertificate::Math(math) => {
+                let mut meaning_tokens = vec![
+                    "math".to_string(),
+                    "solve".to_string(),
+                    format!("family:{}", math.family()),
+                ];
+                if normalized.contains("=") {
+                    meaning_tokens.push("equation".to_string());
+                }
+                meaning_tokens.sort();
+                meaning_tokens.dedup();
+                return SemanticProjection {
+                    intent: "solve_equation".to_string(),
+                    meaning_tokens,
+                };
+            }
+        }
+    }
+
+    if answer.contains("[CRYSTAL] [COMPUTE]") {
+        return SemanticProjection {
+            intent: "compute_expression".to_string(),
+            meaning_tokens: vec!["compute".to_string(), "math".to_string()],
+        };
+    }
+
+    if answer.starts_with("[NEEDS_INPUT]") {
+        return SemanticProjection {
+            intent: "needs_input".to_string(),
+            meaning_tokens: vec!["clarification".to_string()],
+        };
+    }
+
+    SemanticProjection {
+        intent: "unknown".to_string(),
+        meaning_tokens: vec!["unclassified".to_string()],
+    }
+}
+
+fn normalize_compound_clause(input: &str) -> String {
+    strip_leading_discourse_markers(strip_leading_chat_markers(input.trim()))
+        .trim_end_matches(['.', '?', '!'])
+        .trim()
+        .to_string()
+}
+
+fn strip_leading_discourse_markers(input: &str) -> &str {
+    let mut text = input.trim();
+    loop {
+        let lower = text.to_ascii_lowercase();
+        let next = if let Some(rest) = lower
+            .strip_prefix("also, ")
+            .and_then(|_| text.get(6..))
+        {
+            rest
+        } else if let Some(rest) = lower
+            .strip_prefix("also ")
+            .and_then(|_| text.get(5..))
+        {
+            rest
+        } else if let Some(rest) = lower
+            .strip_prefix("and also ")
+            .and_then(|_| text.get(9..))
+        {
+            rest
+        } else {
+            break;
+        };
+        text = next.trim_start();
+    }
+    text
 }
 
 fn simulate_instruction_actions(
@@ -6282,6 +7010,99 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
     }
 
     #[test]
+    fn causes_relation_respects_depth_limit_policy() {
+        let bank_path = temp_bank_path("causes_depth_limit");
+        let grammar_path = temp_grammar_path("causes_depth_limit");
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        assert_eq!(
+            agent.teach("rain causes wet ground"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert_eq!(
+            agent.teach("wet ground causes slippery"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert_eq!(
+            agent.teach("slippery causes accident"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert_eq!(
+            agent.teach("accident causes traffic jam"),
+            "[TEACHING] Knowledge crystallized."
+        );
+
+        assert_eq!(
+            agent.query("Does rain cause accident?"),
+            "[CRYSTAL] YES: rain causes accident."
+        );
+        assert_eq!(
+            agent.query("Does rain cause traffic jam?"),
+            "[CRYSTAL] NO: I cannot establish that rain causes traffic jam."
+        );
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn explain_query_returns_path_depth_and_confidence_for_relation_confirmation() {
+        let bank_path = temp_bank_path("explain_query");
+        let grammar_path = temp_grammar_path("explain_query");
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        assert_eq!(
+            agent.teach("a whale is a mammal"),
+            "[TEACHING] Knowledge crystallized."
+        );
+        assert_eq!(
+            agent.teach("a mammal is an animal"),
+            "[TEACHING] Knowledge crystallized."
+        );
+
+        let explain = agent.explain_query("Is a whale an animal?");
+        assert_eq!(explain.intent, "confirm_relation");
+        assert_eq!(explain.relation.as_deref(), Some("is_a"));
+        assert!(explain.path.len() >= 3);
+        assert_eq!(explain.path.first().map(String::as_str), Some("whale"));
+        assert_eq!(explain.path.last().map(String::as_str), Some("animal"));
+        assert_eq!(explain.depth_limit, None);
+        assert!(explain.confidence.unwrap_or_default() > 0.9);
+        let request_time = explain
+            .request_time_context
+            .as_ref()
+            .expect("expected explain request_time_context");
+        assert_eq!(request_time.timezone, "UTC");
+        assert!(request_time.unix_ms > 0);
+        assert!(
+            request_time.request_received_at.ends_with('Z')
+                || request_time.request_received_at.ends_with("+00:00")
+        );
+        let route_audit = explain
+            .route_audit
+            .as_ref()
+            .expect("expected explain route_audit");
+        assert_eq!(route_audit.relation.as_deref(), Some("is_a"));
+        assert_eq!(route_audit.subject.as_deref(), Some("whale"));
+        assert_eq!(route_audit.object.as_deref(), Some("animal"));
+        assert!(!route_audit.tried.is_empty());
+        assert!(route_audit.stop_reason.contains("path_found"));
+        assert!(
+            explain
+                .considered_contradictions
+                .iter()
+                .any(|line| line.contains("No high-phase contradiction"))
+        );
+
+        let query_payload = agent.query_with_certificate("Is a whale an animal?");
+        assert!(query_payload.request_time_context.is_some());
+        assert!(query_payload.route_audit.is_some());
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
     fn has_property_relation_is_direct_only() {
         let bank_path = temp_bank_path("has_property");
         let grammar_path = temp_grammar_path("has_property");
@@ -6676,6 +7497,76 @@ has_property = "^(?:a|an) (.+?) has (.+)$"
                 .and_then(|v| v.as_bool()),
             Some(false)
         );
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn query_with_certificate_cleans_instruction_modifier_from_target() {
+        let bank_path = temp_bank_path("query_with_certificate_instruction_modifier");
+        let grammar_path = temp_grammar_path("query_with_certificate_instruction_modifier");
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        let result = agent.query_with_certificate("How do I restart nginx safely?");
+        assert!(result.answer.starts_with("[CRYSTAL] [PLAN]"));
+        assert!(result.answer.contains("action=restart nginx for nginx"));
+        assert!(!result.answer.contains("nginx safely"));
+
+        let _ = fs::remove_file(bank_path);
+        let _ = fs::remove_file(grammar_path);
+    }
+
+    #[test]
+    fn query_with_certificate_splits_combined_instruction_and_compute_prompt() {
+        let bank_path = temp_bank_path("query_with_certificate_combined_prompt");
+        let grammar_path = temp_grammar_path("query_with_certificate_combined_prompt");
+        let mut agent = CSIFAgent::load_or_create_with_grammar(&bank_path, &grammar_path).unwrap();
+
+        let result = agent
+            .query_with_certificate("How do I restart nginx safely? Also, what is 3 x 9?");
+        assert!(result.answer.contains("[CRYSTAL] [PLAN] action=restart nginx for nginx"));
+        assert!(result.answer.contains("[CRYSTAL] [COMPUTE] 3 * 9 = 27"));
+        assert!(result.certificate.is_none());
+
+        let clauses = result
+            .clauses
+            .as_ref()
+            .expect("combined prompts should expose clause-level output");
+        assert_eq!(clauses.len(), 2);
+        assert!(clauses[0].certificate.is_some());
+        assert!(clauses[1].certificate.is_none());
+        assert_eq!(clauses[0].semantic_projection.intent, "instruction_request");
+        assert_eq!(clauses[1].semantic_projection.intent, "compute_expression");
+        assert!(clauses[0]
+            .semantic_projection
+            .meaning_tokens
+            .iter()
+            .any(|token| token == "instruction"));
+        assert!(clauses[1]
+            .semantic_projection
+            .meaning_tokens
+            .iter()
+            .any(|token| token == "compute"));
+
+        let summary = result
+            .composite
+            .as_ref()
+            .expect("combined prompts should include composite summary");
+        assert_eq!(summary.clause_count, 2);
+        assert_eq!(summary.clauses_with_certificates, 1);
+        assert_eq!(summary.verified_certificates, 1);
+        assert!(summary.all_clause_certificates_verified);
+        assert!(summary.intents.iter().any(|intent| intent == "instruction_request"));
+        assert!(summary.intents.iter().any(|intent| intent == "compute_expression"));
+        assert!(summary
+            .meaning_vocabulary
+            .iter()
+            .any(|token| token == "instruction"));
+        assert!(summary
+            .meaning_vocabulary
+            .iter()
+            .any(|token| token == "compute"));
 
         let _ = fs::remove_file(bank_path);
         let _ = fs::remove_file(grammar_path);

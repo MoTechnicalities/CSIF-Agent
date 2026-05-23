@@ -12,6 +12,11 @@ is_a = "^(?:a|an) (.+?) is (?:a|an) (.+)$"
 causes = "^(.+?) causes (.+)$"
 has_property = "^(?:a|an) (.+?) has (.+)$"
 
+[relations]
+is_a = 999999
+causes = 3
+has_property = 1
+
 [templates.describe]
 classification = "A {subject} is {direct}."
 properties_intro = "It can be"

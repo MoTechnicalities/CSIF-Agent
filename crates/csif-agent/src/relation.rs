@@ -32,6 +32,14 @@ impl RelationType {
 pub struct RelationSpec {
     pub relation: RelationType,
     pub transitive: bool,
+    pub max_depth: Option<usize>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RelationDepthOverrides {
+    pub is_a: Option<usize>,
+    pub causes: Option<usize>,
+    pub has_property: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +55,7 @@ impl Default for RelationRegistry {
             RelationSpec {
                 relation: RelationType::IsA,
                 transitive: true,
+                max_depth: None,
             },
         );
         by_name.insert(
@@ -54,6 +63,7 @@ impl Default for RelationRegistry {
             RelationSpec {
                 relation: RelationType::Causes,
                 transitive: true,
+                max_depth: Some(3),
             },
         );
         by_name.insert(
@@ -61,6 +71,7 @@ impl Default for RelationRegistry {
             RelationSpec {
                 relation: RelationType::HasProperty,
                 transitive: false,
+                max_depth: Some(1),
             },
         );
         Self { by_name }
@@ -68,6 +79,26 @@ impl Default for RelationRegistry {
 }
 
 impl RelationRegistry {
+    pub fn with_depth_overrides(overrides: RelationDepthOverrides) -> Self {
+        let mut registry = Self::default();
+        if let Some(limit) = overrides.is_a {
+            if let Some(spec) = registry.by_name.get_mut("is_a") {
+                spec.max_depth = Some(limit);
+            }
+        }
+        if let Some(limit) = overrides.causes {
+            if let Some(spec) = registry.by_name.get_mut("causes") {
+                spec.max_depth = Some(limit);
+            }
+        }
+        if let Some(limit) = overrides.has_property {
+            if let Some(spec) = registry.by_name.get_mut("has_property") {
+                spec.max_depth = Some(limit);
+            }
+        }
+        registry
+    }
+
     pub fn spec_by_name(&self, name: &str) -> Option<&RelationSpec> {
         self.by_name.get(name)
     }

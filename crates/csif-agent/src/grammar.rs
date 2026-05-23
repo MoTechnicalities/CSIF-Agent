@@ -6,6 +6,8 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
+use crate::relation::{RelationDepthOverrides, RelationRegistry};
+
 const DEFAULT_QUERY_WHAT_IS: &str = r"^what is (?:(?:a|an)\s+)?(.+?)\?$";
 const DEFAULT_QUERY_IS_A_CONFIRM: &str = r"^is (?:(?:a|an)\s+)?(.+?) (?:a|an) (.+?)\?$";
 const DEFAULT_QUERY_CAUSES_CONFIRM: &str = r"^does (?:(?:a|an)\s+)?(.+?) cause (.+?)\?$";
@@ -116,6 +118,7 @@ pub struct Grammar {
     teach_causes: Regex,
     teach_has_property: Regex,
     describe_templates: DescribeTemplates,
+    relation_registry: RelationRegistry,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,6 +127,14 @@ struct GrammarFile {
     query: QueryRules,
     teach: TeachRules,
     templates: Option<TemplateRules>,
+    relations: Option<RelationRules>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RelationRules {
+    is_a: Option<usize>,
+    causes: Option<usize>,
+    has_property: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -179,6 +190,7 @@ impl Default for Grammar {
             teach_has_property: Regex::new(DEFAULT_TEACH_HAS_PROPERTY)
                 .expect("default teach has_property regex is valid"),
             describe_templates: DescribeTemplates::default(),
+            relation_registry: RelationRegistry::default(),
         }
     }
 }
@@ -201,6 +213,14 @@ impl Grammar {
             describe_templates: DescribeTemplates::from_overrides(
                 grammar_file.templates.and_then(|templates| templates.describe),
             ),
+            relation_registry: RelationRegistry::with_depth_overrides(RelationDepthOverrides {
+                is_a: grammar_file.relations.as_ref().and_then(|rules| rules.is_a),
+                causes: grammar_file.relations.as_ref().and_then(|rules| rules.causes),
+                has_property: grammar_file
+                    .relations
+                    .as_ref()
+                    .and_then(|rules| rules.has_property),
+            }),
         })
     }
 
@@ -210,6 +230,10 @@ impl Grammar {
 
     pub fn describe_templates(&self) -> &DescribeTemplates {
         &self.describe_templates
+    }
+
+    pub fn relation_registry(&self) -> RelationRegistry {
+        self.relation_registry.clone()
     }
 
     pub fn parse_query(&self, input: &str) -> Option<QueryIntent> {
@@ -309,7 +333,7 @@ fn normalize_teach(text: &str) -> String {
 }
 
 fn extract_math_expression(normalized_query: &str) -> Option<String> {
-    if normalized_query.starts_with("what is ") && normalized_query.ends_with('?') {
+    if normalized_query.starts_with("what is ") {
         let expr = normalized_query
             .trim_start_matches("what is ")
             .trim_end_matches('?')
@@ -456,6 +480,18 @@ mod tests {
         match intent {
             QueryIntent::SolveEquation { equation } => assert_eq!(equation, "(x+1)/(x-1)=0"),
             _ => panic!("expected solve equation intent"),
+        }
+    }
+
+    #[test]
+    fn parse_query_supports_compute_without_trailing_question_mark() {
+        let grammar = Grammar::default();
+        let intent = grammar
+            .parse_query("What is 3 x 9")
+            .expect("query should parse as compute expression");
+        match intent {
+            QueryIntent::ComputeExpression { expression } => assert_eq!(expression, "3 * 9"),
+            _ => panic!("expected compute expression intent"),
         }
     }
 }
