@@ -385,10 +385,48 @@ curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d 
 # Query the agent
 curl -X POST http://localhost:8080/query -H "Content-Type: application/json" -d '{"text":"What is a whale?"}'
 
+# Explain the relation path the agent used
+curl -X POST http://localhost:8080/explain -H "Content-Type: application/json" -d '{"text":"Is a whale an animal?"}'
+
 # Contradiction is rejected automatically
 curl -X POST http://localhost:8080/teach -H "Content-Type: application/json" -d '{"text":"A whale is a fish."}'
 # Returns: [CONTRADICTION] That contradicts what I already know.
 ```
+
+### Query/Explain Audit Fields
+
+For relation-confirmation style requests, both `/query` and `/explain` now include:
+
+- `request_time_context`: UTC request timestamp for audit (`request_received_at`, `unix_ms`, `timezone`).
+- `route_audit`: traversal details used during relation inference (`relation`, `subject`, `object`, `tried`, `stop_reason`, `negative_evidence`).
+
+Representative `/query` response fragment:
+
+```json
+{
+	"answer": "[CRYSTAL] YES: a whale is an animal.",
+	"request_time_context": {
+		"request_received_at": "2026-05-23T19:01:52.123+00:00",
+		"unix_ms": 1779562912123,
+		"timezone": "UTC"
+	},
+	"route_audit": {
+		"relation": "is_a",
+		"subject": "whale",
+		"object": "animal",
+		"tried": [
+			"whale -is_a-> mammal (depth 1)",
+			"mammal -is_a-> animal (depth 2)"
+		],
+		"stop_reason": "path_found",
+		"negative_evidence": [
+			"No direct anti-phase or reverse-direction evidence observed for this relation."
+		]
+	}
+}
+```
+
+For unresolved checks (for example, `Is a whale a reptile?`), `route_audit.stop_reason` is expected to report `no_supporting_path`.
 
 ## Architecture
 
