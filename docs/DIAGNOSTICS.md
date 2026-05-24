@@ -8,6 +8,19 @@ It is optimized for:
 - deterministic reproduction
 - minimal guesswork
 
+## Incident Note: Forced Play Stall (May 24, 2026)
+
+Symptom:
+
+- `GET /admin/play?force=1` could stall while `/health` still reported `ok`.
+- Live tracing showed the force path advancing into preview mode and hanging around transitive candidate selection.
+
+Resolution:
+
+- Added `play-trace` timing around the play cycle and preview path.
+- Reworked transitive/property candidate selection to use indexed direct-target lookup and streaming best-candidate selection.
+- Added a tighter timing split around transitive selector index construction versus edge scanning so the remaining hot segment stays visible.
+
 ## 0. Fast Triage Checklist
 
 Run these in order:
