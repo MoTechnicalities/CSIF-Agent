@@ -799,7 +799,21 @@ async fn admin_play_handler(
     require_admin_token(&headers)?;
 
     if parse_force_flag(query.force.as_deref()) {
-        if let Some(record) = run_bounded_play_tick(&state) {
+        // Force ticks are potentially expensive and use blocking primitives.
+        // Run them on the blocking pool with a timeout so the async runtime
+        // remains responsive even if a force tick stalls.
+        let force_timeout = Duration::from_millis(
+            (state.play_runtime.config.max_ms as u64)
+                .saturating_mul(6)
+                .saturating_add(500),
+        );
+        let state_for_tick = Arc::clone(&state);
+        let forced_tick = tokio::time::timeout(force_timeout, tokio::task::spawn_blocking(move || {
+            run_bounded_play_tick(&state_for_tick)
+        }))
+        .await;
+
+        if let Ok(Ok(Some(record))) = forced_tick {
             push_play_history(&state, record);
         }
     }
@@ -857,7 +871,18 @@ async fn admin_observation_handler(
     require_admin_token(&headers)?;
 
     if parse_force_flag(query.force.as_deref()) {
-        if let Some(record) = run_observation_tick(&state) {
+        let force_timeout = Duration::from_millis(
+            (state.observation_runtime.config.max_ms as u64)
+                .saturating_mul(6)
+                .saturating_add(500),
+        );
+        let state_for_tick = Arc::clone(&state);
+        let forced_tick = tokio::time::timeout(force_timeout, tokio::task::spawn_blocking(move || {
+            run_observation_tick(&state_for_tick)
+        }))
+        .await;
+
+        if let Ok(Ok(Some(record))) = forced_tick {
             push_observation_history(&state, record);
         }
     }
@@ -1343,9 +1368,11 @@ fn run_bounded_play_tick(state: &AppState) -> Option<PlayCycleRecord> {
         }
 
         let (mut cycle_attempts, anti_lobe_bank_path) = {
-            let mut guard = match state.agent.lock() {
+            // Avoid blocking the async runtime on force-triggered ticks when the
+            // scheduler or another request already holds the agent lock.
+            let mut guard = match state.agent.try_lock() {
                 Ok(guard) => guard,
-                Err(_) => return None,
+                Err(_) => break,
             };
             let anti_lobe_bank_path = guard.anti_lobe_bank_path.display().to_string();
             let cycle_attempts = if writes_enabled {
