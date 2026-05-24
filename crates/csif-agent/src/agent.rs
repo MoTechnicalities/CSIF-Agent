@@ -1920,13 +1920,22 @@ impl CSIFAgent {
         targets
     }
 
-    fn direct_targets_index_for_relation(
+    fn direct_targets_indices_for_relations(
         &self,
-        relation: RelationType,
-    ) -> HashMap<String, Vec<String>> {
-        let mut targets_by_subject = HashMap::<String, Vec<String>>::new();
+        relations: &[RelationType],
+    ) -> HashMap<RelationType, HashMap<String, Vec<String>>> {
+        let mut targets_by_relation = HashMap::<RelationType, HashMap<String, Vec<String>>>::new();
+        let requested_relations = relations.iter().copied().collect::<HashSet<_>>();
+
+        for relation in relations {
+            targets_by_relation.entry(*relation).or_default();
+        }
+
         for edge in self.crystal.edges.values() {
-            if edge.relation != relation.as_str() {
+            let Some(relation_type) = RelationType::from_str(&edge.relation) else {
+                continue;
+            };
+            if !requested_relations.contains(&relation_type) {
                 continue;
             }
 
@@ -1937,18 +1946,22 @@ impl CSIFAgent {
                 continue;
             };
 
-            targets_by_subject
+            targets_by_relation
+                .entry(relation_type)
+                .or_default()
                 .entry(source_label.to_string())
                 .or_default()
                 .push(target_label.to_string());
         }
 
-        for targets in targets_by_subject.values_mut() {
-            targets.sort();
-            targets.dedup();
+        for targets_by_subject in targets_by_relation.values_mut() {
+            for targets in targets_by_subject.values_mut() {
+                targets.sort();
+                targets.dedup();
+            }
         }
 
-        targets_by_subject
+        targets_by_relation
     }
 
     pub fn run_play_cycle(&mut self) -> Vec<PlayAttempt> {
@@ -2116,8 +2129,17 @@ impl CSIFAgent {
 
     fn next_transitive_play_candidate(&self) -> Option<PlayAttempt> {
         let mut best_candidate: Option<PlayAttempt> = None;
+        let index_build_started = Instant::now();
+        let targets_by_relation =
+            self.direct_targets_indices_for_relations(&[RelationType::IsA, RelationType::Causes]);
+        log_play_phase_if_slow("next_transitive.index_build", index_build_started, || {
+            format!("relation_count={}", targets_by_relation.len())
+        });
+        let scan_started = Instant::now();
         for relation in [RelationType::IsA, RelationType::Causes] {
-            let targets_by_subject = self.direct_targets_index_for_relation(relation);
+            let Some(targets_by_subject) = targets_by_relation.get(&relation) else {
+                continue;
+            };
             for edge in self.crystal.edges.values() {
                 if edge.relation != relation.as_str() {
                     continue;
@@ -2162,6 +2184,9 @@ impl CSIFAgent {
                 }
             }
         }
+        log_play_phase_if_slow("next_transitive.scan_edges", scan_started, || {
+            format!("found_candidate={}", best_candidate.is_some())
+        });
 
         best_candidate
     }
@@ -2241,7 +2266,15 @@ impl CSIFAgent {
 
     fn next_property_play_candidate(&self) -> Option<PlayAttempt> {
         let mut best_candidate: Option<PlayAttempt> = None;
-        let property_targets_by_subject = self.direct_targets_index_for_relation(RelationType::HasProperty);
+        let index_build_started = Instant::now();
+        let targets_by_relation = self.direct_targets_indices_for_relations(&[RelationType::HasProperty]);
+        log_play_phase_if_slow("next_property.index_build", index_build_started, || {
+            format!("relation_count={}", targets_by_relation.len())
+        });
+        let Some(property_targets_by_subject) = targets_by_relation.get(&RelationType::HasProperty) else {
+            return None;
+        };
+        let scan_started = Instant::now();
         for edge in self.crystal.edges.values() {
             if edge.relation != RelationType::IsA.as_str() {
                 continue;
@@ -2281,6 +2314,9 @@ impl CSIFAgent {
                 }
             }
         }
+        log_play_phase_if_slow("next_property.scan_edges", scan_started, || {
+            format!("found_candidate={}", best_candidate.is_some())
+        });
 
         best_candidate
     }
