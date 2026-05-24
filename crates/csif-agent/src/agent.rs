@@ -21,9 +21,32 @@ use std::f64::consts::PI;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 thread_local! {
     static COMPUTE_LATEX_OVERRIDE: Cell<Option<bool>> = const { Cell::new(None) };
+}
+
+fn play_trace_slow_ms() -> Option<u64> {
+    std::env::var("CSIF_PLAY_TRACE_SLOW_MS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+}
+
+fn log_play_phase_if_slow(phase: &str, started_at: Instant, detail: impl FnOnce() -> String) {
+    let Some(threshold_ms) = play_trace_slow_ms() else {
+        return;
+    };
+
+    let elapsed_ms = started_at.elapsed().as_millis() as u64;
+    if elapsed_ms < threshold_ms {
+        return;
+    }
+
+    eprintln!(
+        "play-trace phase={phase} elapsed_ms={elapsed_ms} {}",
+        detail()
+    );
 }
 
 pub struct CSIFAgent {
@@ -1569,7 +1592,11 @@ impl CSIFAgent {
     fn commit_pending_side_effects(&mut self) {
         self.pending_saves = self.pending_saves.saturating_add(1);
         if self.pending_saves >= self.save_every {
+            let save_started = Instant::now();
             self.save().ok();
+            log_play_phase_if_slow("play.commit_pending_side_effects.save", save_started, || {
+                format!("save_every={} pending_saves_before_reset={}", self.save_every, self.pending_saves)
+            });
             self.pending_saves = 0;
         }
     }
@@ -1893,26 +1920,117 @@ impl CSIFAgent {
         targets
     }
 
+    fn direct_targets_index_for_relation(
+        &self,
+        relation: RelationType,
+    ) -> HashMap<String, Vec<String>> {
+        let mut targets_by_subject = HashMap::<String, Vec<String>>::new();
+        for edge in self.crystal.edges.values() {
+            if edge.relation != relation.as_str() {
+                continue;
+            }
+
+            let Some(source_label) = node_label_by_id(&self.crystal, &edge.source) else {
+                continue;
+            };
+            let Some(target_label) = node_label_by_id(&self.crystal, &edge.target) else {
+                continue;
+            };
+
+            targets_by_subject
+                .entry(source_label.to_string())
+                .or_default()
+                .push(target_label.to_string());
+        }
+
+        for targets in targets_by_subject.values_mut() {
+            targets.sort();
+            targets.dedup();
+        }
+
+        targets_by_subject
+    }
+
     pub fn run_play_cycle(&mut self) -> Vec<PlayAttempt> {
+        let cycle_started = Instant::now();
         let mut attempts = Vec::new();
 
-        if let Some(candidate) = self.next_transitive_play_candidate() {
-            attempts.push(self.play_transitive_candidate(candidate));
+        let transitive_candidate_started = Instant::now();
+        let transitive_candidate = self.next_transitive_play_candidate();
+        log_play_phase_if_slow("next_transitive_play_candidate", transitive_candidate_started, || {
+            format!("found_candidate={}", transitive_candidate.is_some())
+        });
+        if let Some(candidate) = transitive_candidate {
+            let subject = candidate.subject.clone();
+            let object = candidate.object.clone();
+            let relation = candidate.relation.clone();
+            let transitive_play_started = Instant::now();
+            let attempt = self.play_transitive_candidate(candidate);
+            log_play_phase_if_slow("play_transitive_candidate", transitive_play_started, || {
+                format!(
+                    "relation={} subject={} object={} outcome={:?}",
+                    relation, subject, object, attempt.outcome
+                )
+            });
+            attempts.push(attempt);
         }
 
-        if let Some(candidate) = self.next_property_play_candidate() {
-            attempts.push(self.play_property_candidate(candidate));
+        let property_candidate_started = Instant::now();
+        let property_candidate = self.next_property_play_candidate();
+        log_play_phase_if_slow("next_property_play_candidate", property_candidate_started, || {
+            format!("found_candidate={}", property_candidate.is_some())
+        });
+        if let Some(candidate) = property_candidate {
+            let subject = candidate.subject.clone();
+            let object = candidate.object.clone();
+            let property_play_started = Instant::now();
+            let attempt = self.play_property_candidate(candidate);
+            log_play_phase_if_slow("play_property_candidate", property_play_started, || {
+                format!(
+                    "subject={} object={} outcome={:?}",
+                    subject, object, attempt.outcome
+                )
+            });
+            attempts.push(attempt);
         }
+
+        log_play_phase_if_slow("run_play_cycle", cycle_started, || {
+            format!("attempt_count={}", attempts.len())
+        });
 
         attempts
     }
 
     pub fn preview_play_cycle(&self) -> Vec<PlayAttempt> {
+        let cycle_started = Instant::now();
         let mut attempts = Vec::new();
 
-        if let Some(mut candidate) = self.next_transitive_play_candidate() {
+        if play_trace_slow_ms().is_some() {
+            eprintln!("play-trace phase=preview_play_cycle.enter");
+        }
+
+        if play_trace_slow_ms().is_some() {
+            eprintln!("play-trace phase=preview_play_cycle.before_next_transitive");
+        }
+        let transitive_candidate_started = Instant::now();
+        let transitive_candidate = self.next_transitive_play_candidate();
+        log_play_phase_if_slow("preview.next_transitive_play_candidate", transitive_candidate_started, || {
+            format!("found_candidate={}", transitive_candidate.is_some())
+        });
+        if play_trace_slow_ms().is_some() {
+            eprintln!("play-trace phase=preview_play_cycle.after_next_transitive");
+        }
+        if let Some(mut candidate) = transitive_candidate {
             let relation_type = RelationType::from_str(&candidate.relation)
                 .expect("known transitive play relation");
+            if play_trace_slow_ms().is_some() {
+                eprintln!(
+                    "play-trace phase=preview_play_cycle.before_transitive_eval relation={} subject={} object={}",
+                    candidate.relation,
+                    candidate.subject,
+                    candidate.object
+                );
+            }
             if self
                 .direct_targets_for_relation(&candidate.subject, relation_type)
                 .iter()
@@ -1932,11 +2050,35 @@ impl CSIFAgent {
                 candidate.detail =
                     "candidate path not supported (preview only; no anti-lobe write)".to_string();
             }
+            if play_trace_slow_ms().is_some() {
+                eprintln!(
+                    "play-trace phase=preview_play_cycle.after_transitive_eval outcome={:?}",
+                    candidate.outcome
+                );
+            }
             attempts.push(candidate);
         }
 
-        if let Some(mut candidate) = self.next_property_play_candidate() {
+        if play_trace_slow_ms().is_some() {
+            eprintln!("play-trace phase=preview_play_cycle.before_next_property");
+        }
+        let property_candidate_started = Instant::now();
+        let property_candidate = self.next_property_play_candidate();
+        log_play_phase_if_slow("preview.next_property_play_candidate", property_candidate_started, || {
+            format!("found_candidate={}", property_candidate.is_some())
+        });
+        if play_trace_slow_ms().is_some() {
+            eprintln!("play-trace phase=preview_play_cycle.after_next_property");
+        }
+        if let Some(mut candidate) = property_candidate {
             let relation_type = RelationType::HasProperty;
+            if play_trace_slow_ms().is_some() {
+                eprintln!(
+                    "play-trace phase=preview_play_cycle.before_property_eval subject={} object={}",
+                    candidate.subject,
+                    candidate.object
+                );
+            }
             if self.has_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type)
             {
                 candidate.outcome = PlayAttemptOutcome::SkippedKnownFailure;
@@ -1956,15 +2098,26 @@ impl CSIFAgent {
                     "property inheritance hypothesis failed (preview only; no anti-lobe write)"
                         .to_string();
             }
+            if play_trace_slow_ms().is_some() {
+                eprintln!(
+                    "play-trace phase=preview_play_cycle.after_property_eval outcome={:?}",
+                    candidate.outcome
+                );
+            }
             attempts.push(candidate);
         }
+
+        log_play_phase_if_slow("preview_play_cycle", cycle_started, || {
+            format!("attempt_count={}", attempts.len())
+        });
 
         attempts
     }
 
     fn next_transitive_play_candidate(&self) -> Option<PlayAttempt> {
-        let mut candidates = Vec::new();
+        let mut best_candidate: Option<PlayAttempt> = None;
         for relation in [RelationType::IsA, RelationType::Causes] {
+            let targets_by_subject = self.direct_targets_index_for_relation(relation);
             for edge in self.crystal.edges.values() {
                 if edge.relation != relation.as_str() {
                     continue;
@@ -1976,34 +2129,56 @@ impl CSIFAgent {
                     continue;
                 };
 
-                for object in self.direct_targets_for_relation(middle, relation) {
+                let Some(middle_targets) = targets_by_subject.get(middle) else {
+                    continue;
+                };
+                let subject_targets = targets_by_subject.get(subject);
+
+                for object in middle_targets {
                     if subject == object {
                         continue;
                     }
-                    if self.direct_targets_for_relation(subject, relation).iter().any(|target| target == &object) {
+                    if subject_targets
+                        .is_some_and(|targets| targets.iter().any(|target| target == object))
+                    {
                         continue;
                     }
-                    candidates.push(PlayAttempt {
+                    let candidate = PlayAttempt {
                         relation: relation.as_str().to_string(),
                         subject: subject.to_string(),
-                        object,
+                        object: object.clone(),
                         basis: vec![subject.to_string(), middle.to_string()],
                         outcome: PlayAttemptOutcome::SkippedKnownSuccess,
                         detail: String::new(),
+                    };
+
+                    let replace_best = best_candidate.as_ref().is_none_or(|current| {
+                        (&candidate.relation, &candidate.subject, &candidate.object)
+                            < (&current.relation, &current.subject, &current.object)
                     });
+                    if replace_best {
+                        best_candidate = Some(candidate);
+                    }
                 }
             }
         }
 
-        candidates.sort_by(|left, right| {
-            (&left.relation, &left.subject, &left.object).cmp(&(&right.relation, &right.subject, &right.object))
-        });
-        candidates.into_iter().next()
+        best_candidate
     }
 
     fn play_transitive_candidate(&mut self, mut candidate: PlayAttempt) -> PlayAttempt {
         let relation_type = RelationType::from_str(&candidate.relation).expect("known transitive play relation");
-        if self.direct_targets_for_relation(&candidate.subject, relation_type)
+        let direct_check_started = Instant::now();
+        let direct_targets = self.direct_targets_for_relation(&candidate.subject, relation_type);
+        log_play_phase_if_slow("play_transitive.direct_targets", direct_check_started, || {
+            format!(
+                "subject={} relation={} direct_target_count={}",
+                candidate.subject,
+                relation_type.as_str(),
+                direct_targets.len()
+            )
+        });
+        if direct_targets
             .iter()
             .any(|target| target == &candidate.object)
         {
@@ -2012,7 +2187,19 @@ impl CSIFAgent {
             return candidate;
         }
 
-        if self.infer_relation_path(&candidate.subject, &candidate.object, relation_type).is_some() {
+        let infer_started = Instant::now();
+        let inferred_path = self.infer_relation_path(&candidate.subject, &candidate.object, relation_type);
+        log_play_phase_if_slow("play_transitive.infer_relation_path", infer_started, || {
+            format!(
+                "subject={} object={} relation={} path_found={}",
+                candidate.subject,
+                candidate.object,
+                relation_type.as_str(),
+                inferred_path.is_some()
+            )
+        });
+        if inferred_path.is_some() {
+            let persist_started = Instant::now();
             self.persist_positive_relation(
                 &candidate.subject,
                 &candidate.object,
@@ -2023,6 +2210,14 @@ impl CSIFAgent {
             self.remove_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type);
             self.index_dirty = true;
             self.commit_pending_side_effects();
+            log_play_phase_if_slow("play_transitive.persist_success", persist_started, || {
+                format!(
+                    "subject={} object={} relation={}",
+                    candidate.subject,
+                    candidate.object,
+                    relation_type.as_str()
+                )
+            });
             candidate.outcome = PlayAttemptOutcome::SuccessCrystallized;
             candidate.detail = "transitive path verified and crystallized as a direct edge".to_string();
             return candidate;
@@ -2030,13 +2225,23 @@ impl CSIFAgent {
 
         candidate.outcome = PlayAttemptOutcome::FailurePersisted;
         candidate.detail = "candidate path was not supported".to_string();
+        let persist_started = Instant::now();
         self.persist_negative_relation(&candidate.subject, &candidate.object, relation_type, "play_transitive_no_support");
         self.commit_pending_side_effects();
+        log_play_phase_if_slow("play_transitive.persist_failure", persist_started, || {
+            format!(
+                "subject={} object={} relation={}",
+                candidate.subject,
+                candidate.object,
+                relation_type.as_str()
+            )
+        });
         candidate
     }
 
     fn next_property_play_candidate(&self) -> Option<PlayAttempt> {
-        let mut candidates = Vec::new();
+        let mut best_candidate: Option<PlayAttempt> = None;
+        let property_targets_by_subject = self.direct_targets_index_for_relation(RelationType::HasProperty);
         for edge in self.crystal.edges.values() {
             if edge.relation != RelationType::IsA.as_str() {
                 continue;
@@ -2048,33 +2253,51 @@ impl CSIFAgent {
                 continue;
             };
 
-            for property in self.direct_targets_for_relation(parent, RelationType::HasProperty) {
-                if self.direct_targets_for_relation(subject, RelationType::HasProperty)
-                    .iter()
-                    .any(|target| target == &property)
+            let Some(parent_properties) = property_targets_by_subject.get(parent) else {
+                continue;
+            };
+            let subject_properties = property_targets_by_subject.get(subject);
+
+            for property in parent_properties {
+                if subject_properties
+                    .is_some_and(|targets| targets.iter().any(|target| target == property))
                 {
                     continue;
                 }
-                candidates.push(PlayAttempt {
+                let candidate = PlayAttempt {
                     relation: RelationType::HasProperty.as_str().to_string(),
                     subject: subject.to_string(),
-                    object: property,
+                    object: property.clone(),
                     basis: vec![subject.to_string(), parent.to_string()],
                     outcome: PlayAttemptOutcome::SkippedKnownSuccess,
                     detail: String::new(),
+                };
+
+                let replace_best = best_candidate.as_ref().is_none_or(|current| {
+                    (&candidate.subject, &candidate.object) < (&current.subject, &current.object)
                 });
+                if replace_best {
+                    best_candidate = Some(candidate);
+                }
             }
         }
 
-        candidates.sort_by(|left, right| {
-            (&left.subject, &left.object).cmp(&(&right.subject, &right.object))
-        });
-        candidates.into_iter().next()
+        best_candidate
     }
 
     fn play_property_candidate(&mut self, mut candidate: PlayAttempt) -> PlayAttempt {
         let relation_type = RelationType::HasProperty;
-        if self.has_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type) {
+        let negative_check_started = Instant::now();
+        let has_negative = self.has_explicit_negative_relation(&candidate.subject, &candidate.object, relation_type);
+        log_play_phase_if_slow("play_property.has_explicit_negative_relation", negative_check_started, || {
+            format!(
+                "subject={} object={} has_negative={}",
+                candidate.subject,
+                candidate.object,
+                has_negative
+            )
+        });
+        if has_negative {
             candidate.outcome = PlayAttemptOutcome::SkippedKnownFailure;
             candidate.detail = format!(
                 "suppressed by Anti-Lobe bank {}",
@@ -2083,12 +2306,23 @@ impl CSIFAgent {
             return candidate;
         }
 
-        if self.infer_relation_path(&candidate.subject, &candidate.object, relation_type).is_some() {
+        let infer_started = Instant::now();
+        let inferred_path = self.infer_relation_path(&candidate.subject, &candidate.object, relation_type);
+        log_play_phase_if_slow("play_property.infer_relation_path", infer_started, || {
+            format!(
+                "subject={} object={} path_found={}",
+                candidate.subject,
+                candidate.object,
+                inferred_path.is_some()
+            )
+        });
+        if inferred_path.is_some() {
             candidate.outcome = PlayAttemptOutcome::SuccessCrystallized;
             candidate.detail = "property candidate was already supported".to_string();
             return candidate;
         }
 
+        let persist_started = Instant::now();
         self.persist_negative_relation(
             &candidate.subject,
             &candidate.object,
@@ -2096,6 +2330,9 @@ impl CSIFAgent {
             "play_property_no_support",
         );
         self.commit_pending_side_effects();
+        log_play_phase_if_slow("play_property.persist_failure", persist_started, || {
+            format!("subject={} object={}", candidate.subject, candidate.object)
+        });
         candidate.outcome = PlayAttemptOutcome::FailurePersisted;
         candidate.detail = "property inheritance hypothesis failed and was persisted to Anti-Lobe".to_string();
         candidate

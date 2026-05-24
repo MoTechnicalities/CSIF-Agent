@@ -884,18 +884,30 @@ async fn admin_play_handler(
     Query(query): Query<AdminLoopQuery>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<AdminPlayResponse>, (StatusCode, Json<serde_json::Value>)> {
+    if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+        eprintln!("play-trace phase=admin_play_handler.enter force={}", parse_force_flag(query.force.as_deref()));
+    }
     require_admin_token(&headers)?;
 
     if parse_force_flag(query.force.as_deref()) {
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.force_request");
+        }
         let _force_permit = try_acquire_force_permit(
             Arc::clone(&state.play_force_control),
             "play",
         )?;
         let state_for_tick = Arc::clone(&state);
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.before_spawn_blocking");
+        }
         let forced_tick = tokio::task::spawn_blocking(move || {
             run_bounded_play_tick(&state_for_tick)
         })
         .await;
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.after_spawn_blocking");
+        }
 
         match forced_tick {
             Ok(Some(record)) => push_play_history(&state, record),
@@ -915,6 +927,9 @@ async fn admin_play_handler(
     }
 
     let scheduler = {
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.before_scheduler_lock");
+        }
         let history = state.play_runtime.history.lock().map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -926,6 +941,9 @@ async fn admin_play_handler(
                 })),
             )
         })?;
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.after_scheduler_lock len={}", history.len());
+        }
 
         PlaySchedulerStatus {
             enabled: state.play_runtime.config.enabled,
@@ -939,6 +957,9 @@ async fn admin_play_handler(
     };
 
     let recent_cycles = {
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.before_recent_cycles_lock");
+        }
         let history = state.play_runtime.history.lock().map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -950,6 +971,9 @@ async fn admin_play_handler(
                 })),
             )
         })?;
+        if std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok() {
+            eprintln!("play-trace phase=admin_play_handler.after_recent_cycles_lock len={}", history.len());
+        }
         history.iter().rev().cloned().collect::<Vec<_>>()
     };
 
@@ -1468,6 +1492,16 @@ fn run_bounded_play_tick(state: &AppState) -> Option<PlayCycleRecord> {
     let max_cycles_per_tick = state.play_runtime.config.max_cycles_per_tick;
     let max_ms = state.play_runtime.config.max_ms;
     let writes_enabled = state.play_runtime.config.approval_token.is_some();
+    let play_trace_enabled = std::env::var("CSIF_PLAY_TRACE_SLOW_MS").is_ok();
+
+    if play_trace_enabled {
+        eprintln!(
+            "play-trace phase=run_bounded_play_tick.enter writes_enabled={} max_cycles_per_tick={} max_ms={}",
+            writes_enabled,
+            max_cycles_per_tick,
+            max_ms
+        );
+    }
 
     for _ in 0..max_cycles_per_tick {
         if tick_started.elapsed().as_millis() >= max_ms as u128 {
@@ -1477,16 +1511,41 @@ fn run_bounded_play_tick(state: &AppState) -> Option<PlayCycleRecord> {
         let (mut cycle_attempts, anti_lobe_bank_path) = {
             // Avoid blocking the async runtime on force-triggered ticks when the
             // scheduler or another request already holds the agent lock.
+            let lock_hold_started = std::time::Instant::now();
             let mut guard = match state.agent.try_lock() {
                 Ok(guard) => guard,
                 Err(_) => break,
             };
             let anti_lobe_bank_path = guard.anti_lobe_bank_path.display().to_string();
+            if play_trace_enabled {
+                eprintln!("play-trace phase=run_bounded_play_tick.before_cycle_call writes_enabled={}", writes_enabled);
+            }
             let cycle_attempts = if writes_enabled {
                 guard.run_play_cycle()
             } else {
                 guard.preview_play_cycle()
             };
+            if play_trace_enabled {
+                eprintln!(
+                    "play-trace phase=run_bounded_play_tick.after_cycle_call writes_enabled={} attempt_count={}",
+                    writes_enabled,
+                    cycle_attempts.len()
+                );
+            }
+            if let Some(threshold_ms) = std::env::var("CSIF_PLAY_TRACE_SLOW_MS")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+            {
+                let elapsed_ms = lock_hold_started.elapsed().as_millis() as u64;
+                if elapsed_ms >= threshold_ms {
+                    eprintln!(
+                        "play-trace phase=run_bounded_play_tick.lock_hold elapsed_ms={} writes_enabled={} attempt_count={}",
+                        elapsed_ms,
+                        writes_enabled,
+                        cycle_attempts.len()
+                    );
+                }
+            }
             (cycle_attempts, Some(anti_lobe_bank_path))
         };
 
