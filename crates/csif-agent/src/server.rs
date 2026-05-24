@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use crate::agent::{
@@ -253,10 +253,19 @@ struct ObservationRuntimeState {
     history: Mutex<VecDeque<ObservationCycleRecord>>,
 }
 
+#[derive(Debug)]
+struct ForceExecutionControl {
+    in_flight: AtomicBool,
+    last_completed_ms: AtomicU64,
+    cooldown_ms: u64,
+}
+
 struct AppState {
     agent: Arc<Mutex<CSIFAgent>>,
     play_runtime: Arc<PlayRuntimeState>,
     observation_runtime: Arc<ObservationRuntimeState>,
+    play_force_control: Arc<ForceExecutionControl>,
+    observation_force_control: Arc<ForceExecutionControl>,
 }
 
 impl AppState {
@@ -271,8 +280,87 @@ impl AppState {
                 config: observation_scheduler_config_from_env(),
                 history: Mutex::new(VecDeque::new()),
             }),
+            play_force_control: Arc::new(ForceExecutionControl {
+                in_flight: AtomicBool::new(false),
+                last_completed_ms: AtomicU64::new(0),
+                cooldown_ms: std::env::var("CSIF_PLAY_FORCE_COOLDOWN_MS")
+                    .ok()
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(1500),
+            }),
+            observation_force_control: Arc::new(ForceExecutionControl {
+                in_flight: AtomicBool::new(false),
+                last_completed_ms: AtomicU64::new(0),
+                cooldown_ms: std::env::var("CSIF_OBSERVE_FORCE_COOLDOWN_MS")
+                    .ok()
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or(1500),
+            }),
         }
     }
+}
+
+struct ForceExecutionPermit {
+    control: Arc<ForceExecutionControl>,
+}
+
+impl Drop for ForceExecutionPermit {
+    fn drop(&mut self) {
+        self.control
+            .last_completed_ms
+            .store(unix_epoch_millis(), Ordering::SeqCst);
+        self.control.in_flight.store(false, Ordering::SeqCst);
+    }
+}
+
+fn unix_epoch_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn try_acquire_force_permit(
+    control: Arc<ForceExecutionControl>,
+    loop_name: &str,
+) -> Result<ForceExecutionPermit, (StatusCode, Json<serde_json::Value>)> {
+    let now_ms = unix_epoch_millis();
+    let last_completed_ms = control.last_completed_ms.load(Ordering::SeqCst);
+    if control.cooldown_ms > 0 && last_completed_ms > 0 {
+        let elapsed_ms = now_ms.saturating_sub(last_completed_ms);
+        if elapsed_ms < control.cooldown_ms {
+            return Err((
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({
+                    "error": {
+                        "message": format!(
+                            "{loop_name} force request is cooling down ({}ms remaining)",
+                            control.cooldown_ms.saturating_sub(elapsed_ms)
+                        ),
+                        "type": "force_cooldown"
+                    }
+                })),
+            ));
+        }
+    }
+
+    if control
+        .in_flight
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({
+                "error": {
+                    "message": format!("{loop_name} force request already in progress"),
+                    "type": "force_busy"
+                }
+            })),
+        ));
+    }
+
+    Ok(ForceExecutionPermit { control })
 }
 
 #[derive(Debug, Deserialize)]
@@ -799,22 +887,30 @@ async fn admin_play_handler(
     require_admin_token(&headers)?;
 
     if parse_force_flag(query.force.as_deref()) {
-        // Force ticks are potentially expensive and use blocking primitives.
-        // Run them on the blocking pool with a timeout so the async runtime
-        // remains responsive even if a force tick stalls.
-        let force_timeout = Duration::from_millis(
-            (state.play_runtime.config.max_ms as u64)
-                .saturating_mul(6)
-                .saturating_add(500),
-        );
+        let _force_permit = try_acquire_force_permit(
+            Arc::clone(&state.play_force_control),
+            "play",
+        )?;
         let state_for_tick = Arc::clone(&state);
-        let forced_tick = tokio::time::timeout(force_timeout, tokio::task::spawn_blocking(move || {
+        let forced_tick = tokio::task::spawn_blocking(move || {
             run_bounded_play_tick(&state_for_tick)
-        }))
+        })
         .await;
 
-        if let Ok(Ok(Some(record))) = forced_tick {
-            push_play_history(&state, record);
+        match forced_tick {
+            Ok(Some(record)) => push_play_history(&state, record),
+            Ok(None) => {}
+            Err(err) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": {
+                            "message": format!("play force execution failed: {err}"),
+                            "type": "internal_error"
+                        }
+                    })),
+                ));
+            }
         }
     }
 
@@ -871,19 +967,30 @@ async fn admin_observation_handler(
     require_admin_token(&headers)?;
 
     if parse_force_flag(query.force.as_deref()) {
-        let force_timeout = Duration::from_millis(
-            (state.observation_runtime.config.max_ms as u64)
-                .saturating_mul(6)
-                .saturating_add(500),
-        );
+        let _force_permit = try_acquire_force_permit(
+            Arc::clone(&state.observation_force_control),
+            "observation",
+        )?;
         let state_for_tick = Arc::clone(&state);
-        let forced_tick = tokio::time::timeout(force_timeout, tokio::task::spawn_blocking(move || {
+        let forced_tick = tokio::task::spawn_blocking(move || {
             run_observation_tick(&state_for_tick)
-        }))
+        })
         .await;
 
-        if let Ok(Ok(Some(record))) = forced_tick {
-            push_observation_history(&state, record);
+        match forced_tick {
+            Ok(Some(record)) => push_observation_history(&state, record),
+            Ok(None) => {}
+            Err(err) => {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": {
+                            "message": format!("observation force execution failed: {err}"),
+                            "type": "internal_error"
+                        }
+                    })),
+                ));
+            }
         }
     }
 
