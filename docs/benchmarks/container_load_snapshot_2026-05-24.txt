@@ -1,0 +1,49 @@
+]633;E;echo "timestamp_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ')";661316fb-fd1e-42a8-8204-398e2965d72e]633;Ctimestamp_utc=2026-05-24T12:59:01Z
+## docker_ps
+csif-agent|Up 10 minutes (healthy)|ghcr.io/motechnicalities/csif-agent:latest
+open-webui|Up 10 hours (healthy)|ghcr.io/open-webui/open-webui:main
+homeassistant|Up 10 hours (healthy)|homeassistant/home-assistant:stable
+caddy-proxy|Up 10 hours|caddy:latest
+homebridge2|Up 10 hours|homebridge/homebridge:latest
+homebridge1|Up 10 hours|homebridge/homebridge:latest
+openclaw-agent|Up 10 hours (healthy)|ghcr.io/openclaw/openclaw:latest
+n8n_rofick-n8n|Up 10 hours|docker.n8n.io/n8nio/n8n:latest
+n8n_morro|Up 10 hours|docker.n8n.io/n8nio/n8n:latest
+navidrome|Up 10 hours|deluan/navidrome:latest
+jellyfin|Up 10 hours|lscr.io/linuxserver/jellyfin:latest
+mosquitto|Up 10 hours|eclipse-mosquitto:latest
+joomla1_app|Up 10 hours|joomla:latest
+joomla1_db|Up 10 hours|mariadb:latest
+ddclient|Up 10 hours|lscr.io/linuxserver/ddclient:latest
+oceanecosystems-db|Up 10 hours (healthy)|postgres:15-alpine
+ring-mqtt|Up 10 hours|tsightler/ring-mqtt:latest
+piper|Up 10 hours|rhasspy/wyoming-piper:latest
+matter-server|Up 10 hours|ghcr.io/home-assistant-libs/python-matter-server:stable
+oceanecosystems-app|Up 10 hours|oceanecosystems-app
+## docker_stats_no_stream
+csif-agent|0.00%|31.82MiB / 11.6GiB|5
+open-webui|0.19%|162.4MiB / 11.6GiB|21
+homeassistant|0.64%|558.5MiB / 11.6GiB|51
+caddy-proxy|0.00%|15.82MiB / 11.6GiB|10
+homebridge2|1.06%|233.5MiB / 11.6GiB|57
+homebridge1|0.52%|111MiB / 11.6GiB|36
+openclaw-agent|0.59%|275.3MiB / 11.6GiB|13
+n8n_rofick-n8n|0.34%|208.8MiB / 11.6GiB|20
+n8n_morro|0.26%|206.2MiB / 11.6GiB|20
+navidrome|0.02%|17.01MiB / 11.6GiB|14
+jellyfin|0.01%|169.6MiB / 11.6GiB|28
+mosquitto|0.04%|2.445MiB / 11.6GiB|1
+joomla1_app|0.01%|87.33MiB / 11.6GiB|11
+joomla1_db|0.02%|30.32MiB / 11.6GiB|9
+ddclient|0.00%|12.04MiB / 11.6GiB|13
+oceanecosystems-db|0.00%|10.69MiB / 11.6GiB|6
+ring-mqtt|0.03%|109MiB / 11.6GiB|34
+piper|0.00%|2.586MiB / 11.6GiB|4
+matter-server|1.66%|34.86MiB / 11.6GiB|6
+oceanecosystems-app|0.00%|50.01MiB / 11.6GiB|11
+## free_h
+               total        used        free      shared  buff/cache   available
+Mem:            11Gi       5.8Gi       676Mi       238Mi       5.7Gi       5.8Gi
+Swap:          2.0Gi       2.0Gi        22Mi
+## uptime
+ 08:59:04 up  9:45,  1 user,  load average: 1.35, 0.89, 1.02
