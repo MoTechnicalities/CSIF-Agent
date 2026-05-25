@@ -34,10 +34,33 @@ Or with docker compose:
 docker compose up -d
 ```
 
+## Release Freeze Gate (Native + Docker)
+
+Run the unified freeze gate before tagging a release:
+
+```bash
+chmod +x scripts/release/freeze_gate.sh
+./scripts/release/freeze_gate.sh all
+```
+
+Summary output is written to:
+
+- `.runtime/native/freeze_gate_latest.txt`
+
+Gate checks include:
+
+- Native v2 benchmark
+- Native anti-v3 benchmark
+- Native math-attacks qualification
+- Docker v2 benchmark
+- Docker anti-v3 benchmark
+- Docker math smoke
+
 ## Environment Variables
 
 - `CSIF_BANK_PATH`: Path to the RWIF crystal bank file. Default in container is `/data/my_brain.rwif`.
 - `CSIF_PORT`: HTTP listen port inside the container. Default is `8080`.
+- `CSIF_LOBES_DIR`: Lobe bundle directory. Default is `/app/lobes`.
 - `IMAGE`: Override image name for scripts.
 - `HOST_PORT`: Override host port in `docker-run.sh`.
 - `CONTAINER_NAME`: Override container name in `docker-run.sh`.

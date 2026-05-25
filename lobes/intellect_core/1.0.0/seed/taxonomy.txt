@@ -1,0 +1,79 @@
+a csif agent is a deterministic inference engine
+a deterministic inference engine is a local ai system
+a local ai system is a software system
+a rwif bank is a append only datastore
+a anti lobe is a contradiction memory
+a contradiction memory is a safety subsystem
+a loop audit event is a observability record
+a play cycle is a internal reasoning routine
+a observation cycle is a internal reasoning routine
+a force play request is a admin operation
+a force observation request is a admin operation
+a admin operation is a control action
+a docker container is a runtime unit
+a docker compose stack is a container orchestration stack
+a cloudflare tunnel is a secure tunnel service
+a home assistant is a home automation platform
+a home automation platform is a service platform
+a service platform is a software system
+a old server stress bed is a validation environment
+a validation environment is a engineering environment
+a dedicated ai server is a production environment
+a production environment is a engineering environment
+a benchmark battery is a validation workflow
+a cognition battery is a validation workflow
+a validation workflow is a engineering workflow
+a anomaly classification is a safety signal
+a cooldown gate is a protection mechanism
+a protection mechanism is a safety subsystem
+a swap pressure is a host resource condition
+a cpu contention is a host resource condition
+a host resource condition is a runtime condition
+a home assistant automation is a automation workflow
+a automation workflow is a control workflow
+a control workflow is a operations workflow
+a sensor event is a automation signal
+a automation signal is a control signal
+a control signal is a operational signal
+a loop audit log is a diagnostic artifact
+a incident report is a diagnostic artifact
+a diagnostic artifact is a observability artifact
+a observability artifact is a engineering artifact
+a release checkpoint is a delivery milestone
+a delivery milestone is a engineering milestone
+a service restart is a recovery action
+a recovery action is a operations action
+a rollback plan is a operations safeguard
+a operations safeguard is a safety practice
+a admin token is a access credential
+a bearer token is a access credential
+a access credential is a security control
+a rate limit response is a protective response
+a protective response is a safety signal
+a cooldown gate is a protective mechanism
+a protective mechanism is a safety subsystem
+a contradiction rejection is a safety behavior
+a safety behavior is a reliability behavior
+a reliability behavior is a quality behavior
+a deterministic answer is a trust signal
+a trust signal is a quality signal
+a quality signal is a engineering signal
+a cognition update is a learning update
+a learning update is a engineering workflow
+a knowledge patch is a learning update
+a benchmark summary is a performance artifact
+a performance artifact is a engineering artifact
+a swap pressure event is a runtime signal
+a cpu contention event is a runtime signal
+a runtime signal is a observability signal
+a observability signal is a engineering signal
+a dedicated ai host is a production platform
+a production platform is a deployment platform
+a old stress host is a validation platform
+a validation platform is a deployment platform
+a docker compose deployment is a deployment method
+a deployment method is a operations method
+a cloudflare tunnel access is a remote access method
+a remote access method is a operations method
+a whale is a mammal
+a mammal is a animal
