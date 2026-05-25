@@ -34,6 +34,16 @@ Or with docker compose:
 docker compose up -d
 ```
 
+By default, `docker-compose.yml` is configured for freeze-safe validation:
+
+- `CSIF_BOOTSTRAP_BASE_ON_EMPTY=0`
+- `CSIF_BOOTSTRAP_BASE_MODE=empty`
+- `CSIF_PLAY_ENABLED=0`
+- `CSIF_OBSERVE_ENABLED=0`
+
+This preserves parity with freeze qualification and prevents autonomous loop drift.
+If you want autonomous learning behavior, explicitly override those values.
+
 ## Release Freeze Gate (Native + Docker)
 
 Run the unified freeze gate before tagging a release:

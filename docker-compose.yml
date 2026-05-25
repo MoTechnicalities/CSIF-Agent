@@ -1,20 +1,19 @@
 services:
   csif-agent:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ghcr.io/motechnicalities/csif-agent:latest
+    image: ghcr.io/motechnicalities/csif-agent:v1.0.0-freeze.2
     container_name: csif-agent
     ports:
       - "8080:8080"
     environment:
       - CSIF_BANK_PATH=/data/my_brain.rwif
-      - CSIF_BOOTSTRAP_BASE_ON_EMPTY=1
-      - CSIF_BOOTSTRAP_BASE_MODE=ensure
+      # Freeze baseline: lobe-first, no base bootstrap overlay.
+      - CSIF_BOOTSTRAP_BASE_ON_EMPTY=0
+      - CSIF_BOOTSTRAP_BASE_MODE=empty
       - CSIF_LOBES_DIR=/app/lobes
       - CSIF_LOBES_POLL_SECS=5
       - CSIF_ADMIN_TOKEN=${CSIF_ADMIN_TOKEN:-}
-      - CSIF_PLAY_ENABLED=1
+      # Freeze baseline: disable autonomous mutation loops.
+      - CSIF_PLAY_ENABLED=0
       - CSIF_PLAY_POLL_SECS=300
       - CSIF_PLAY_MAX_MS=50
       - CSIF_PLAY_MAX_CYCLES_PER_TICK=1
@@ -22,7 +21,7 @@ services:
       - CSIF_PLAY_FORCE_COOLDOWN_MS=2000
       - CSIF_PLAY_TRACE_SLOW_MS=25
       - CSIF_PLAY_APPROVAL_TOKEN=${CSIF_PLAY_APPROVAL_TOKEN:-}
-      - CSIF_OBSERVE_ENABLED=1
+      - CSIF_OBSERVE_ENABLED=0
       - CSIF_OBSERVE_POLL_SECS=21600
       - CSIF_OBSERVE_MAX_MS=50
       - CSIF_OBSERVE_HISTORY_LIMIT=100
