@@ -7,6 +7,7 @@ BASE_SEED_DIR="${CSIF_BASE_SEED_DIR:-/app/data/base_lobe_v1/seed}"
 BOOTSTRAP_ON_EMPTY="${CSIF_BOOTSTRAP_BASE_ON_EMPTY:-1}"
 BOOTSTRAP_MODE="${CSIF_BOOTSTRAP_BASE_MODE:-ensure}"
 BOOTSTRAP_MARKER="${CSIF_BASE_BOOTSTRAP_MARKER:-$(dirname "$BANK_PATH")/.csif_base_lobe_seeded}"
+BOOTSTRAP_SAVE_EVERY="${CSIF_BOOTSTRAP_SAVE_EVERY:-512}"
 
 is_enabled() {
   case "${1:-}" in
@@ -42,8 +43,10 @@ if is_enabled "$BOOTSTRAP_ON_EMPTY"; then
 
     if [ "$should_seed" -eq 1 ]; then
       echo "[bootstrap] Ensuring base lobe from $BASE_SEED_DIR"
+      echo "[bootstrap] Using CSIF_SAVE_EVERY=$BOOTSTRAP_SAVE_EVERY for bulk seed"
       mkdir -p "$(dirname "$BANK_PATH")"
-      /app/bulk_seed "$BANK_PATH" "$GRAMMAR_PATH" "$BASE_SEED_DIR"
+      CSIF_SAVE_EVERY="$BOOTSTRAP_SAVE_EVERY" \
+        /app/bulk_seed "$BANK_PATH" "$GRAMMAR_PATH" "$BASE_SEED_DIR"
       date -u +"%Y-%m-%dT%H:%M:%SZ" > "$BOOTSTRAP_MARKER"
       echo "[bootstrap] Base lobe seed complete"
     else

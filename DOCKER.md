@@ -71,6 +71,7 @@ Gate checks include:
 - `CSIF_BANK_PATH`: Path to the RWIF crystal bank file. Default in container is `/data/my_brain.rwif`.
 - `CSIF_PORT`: HTTP listen port inside the container. Default is `8080`.
 - `CSIF_LOBES_DIR`: Lobe bundle directory. Default is `/app/lobes`.
+- `CSIF_BOOTSTRAP_SAVE_EVERY`: Save cadence used only during bootstrap bulk seed. Default is `512`.
 - `IMAGE`: Override image name for scripts.
 - `HOST_PORT`: Override host port in `docker-run.sh`.
 - `CONTAINER_NAME`: Override container name in `docker-run.sh`.
